@@ -155,6 +155,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     underline: false,
     strikethrough: false
   });
+  const [currentBlockTag, setCurrentBlockTag] = useState<'p' | 'h1' | 'h2' | 'h3' | 'blockquote' | 'pre'>('p');
 
   const editorRef = useRef<HTMLDivElement>(null);
   const documentContainerRef = useRef<HTMLDivElement>(null);
@@ -260,14 +261,39 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     setActivePageIndex(currentPage);
   };
 
-  // Check active format states on selection
+  // Check active format states on selection and detect active heading/block & font size
   const checkActiveFormats = () => {
-    setActiveFormats({
-      bold: document.queryCommandState('bold'),
-      italic: document.queryCommandState('italic'),
-      underline: document.queryCommandState('underline'),
-      strikethrough: document.queryCommandState('strikeThrough')
-    });
+    try {
+      setActiveFormats({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        strikethrough: document.queryCommandState('strikeThrough')
+      });
+    } catch {
+      // Ignore queryCommandState issues in edge environments
+    }
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current) {
+      let node: Node | null = sel.anchorNode;
+      while (node && node !== editorRef.current) {
+        if (node instanceof HTMLElement) {
+          const tag = node.tagName.toLowerCase();
+          if (['h1', 'h2', 'h3', 'p', 'blockquote', 'pre'].includes(tag)) {
+            setCurrentBlockTag(tag as any);
+            break;
+          }
+          if (node.style && node.style.fontSize) {
+            const pxSize = parseInt(node.style.fontSize, 10);
+            if (pxSize && !isNaN(pxSize)) {
+              setFontSize(pxSize);
+            }
+          }
+        }
+        node = node.parentNode;
+      }
+    }
   };
 
   // Image Selection and Interaction Listener
@@ -434,25 +460,131 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   };
 
   const handleFontStyleChange = (styleType: string) => {
-    if (styleType === 'p') executeCommand('formatBlock', '<p>');
-    else if (styleType === 'h1') executeCommand('formatBlock', '<h1>');
-    else if (styleType === 'h2') executeCommand('formatBlock', '<h2>');
-    else if (styleType === 'h3') executeCommand('formatBlock', '<h3>');
-    else if (styleType === 'blockquote') executeCommand('formatBlock', '<blockquote>');
-    else if (styleType === 'pre') executeCommand('formatBlock', '<pre>');
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+
+    try {
+      if (styleType === 'p') {
+        document.execCommand('formatBlock', false, '<p>');
+      } else if (styleType === 'h1') {
+        document.execCommand('formatBlock', false, '<h1>');
+      } else if (styleType === 'h2') {
+        document.execCommand('formatBlock', false, '<h2>');
+      } else if (styleType === 'h3') {
+        document.execCommand('formatBlock', false, '<h3>');
+      } else if (styleType === 'blockquote') {
+        document.execCommand('formatBlock', false, '<blockquote>');
+      } else if (styleType === 'pre') {
+        document.execCommand('formatBlock', false, '<pre>');
+      }
+    } catch (e) {
+      console.warn('formatBlock error:', e);
+    }
+
+    setCurrentBlockTag(styleType as any);
+    checkActiveFormats();
+    setTimeout(recalculatePagination, 50);
+  };
+
+  // Precise font size handler - ONLY applies to selected text if text is selected, else sets default
+  const applyFontSize = (targetSize: number) => {
+    const clampedSize = Math.max(10, Math.min(72, targetSize));
+    setFontSize(clampedSize);
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      // No text highlighted, set base editor font size
+      if (editorRef.current) {
+        editorRef.current.style.fontSize = `${clampedSize}px`;
+      }
+      setTimeout(recalculatePagination, 50);
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+    if (!editorRef.current || !editorRef.current.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    // Check if the selected text is already entirely wrapped in a span
+    const startNode = range.startContainer;
+    const endNode = range.endContainer;
+    const startParent = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as HTMLElement);
+    const endParent = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : (endNode as HTMLElement);
+
+    if (
+      startParent &&
+      startParent === endParent &&
+      startParent.tagName === 'SPAN' &&
+      range.toString().trim() === (startParent.textContent || '').trim()
+    ) {
+      startParent.style.fontSize = `${clampedSize}px`;
+      const newRange = document.createRange();
+      newRange.selectNodeContents(startParent);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      setTimeout(recalculatePagination, 50);
+      return;
+    }
+
+    // Wrap the selected range in a styled span
+    try {
+      const extracted = range.extractContents();
+      const span = document.createElement('span');
+      span.style.fontSize = `${clampedSize}px`;
+      span.appendChild(extracted);
+      range.insertNode(span);
+
+      // Re-highlight the newly created span so consecutive +/- clicks work smoothly
+      const newRange = document.createRange();
+      newRange.selectNodeContents(span);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    } catch (e) {
+      console.warn('Font size selection wrap fallback:', e);
+    }
+
+    setTimeout(recalculatePagination, 50);
   };
 
   const handleFontSizeChange = (delta: number) => {
-    const newSize = Math.max(10, Math.min(72, fontSize + delta));
-    setFontSize(newSize);
+    applyFontSize(fontSize + delta);
+  };
 
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-      const range = selection.getRangeAt(0);
-      const span = document.createElement('span');
-      span.style.fontSize = `${newSize}px`;
-      span.appendChild(range.extractContents());
-      range.insertNode(span);
+  const handleDirectFontSizeChange = (newSize: number) => {
+    applyFontSize(newSize);
+  };
+
+  // Instant 1-click language mode switch for Urdu / English
+  const handleLanguageMode = (mode: 'urdu' | 'english') => {
+    if (mode === 'english') {
+      setDirection('ltr');
+      setTextAlign('left');
+      setLineHeight('1.6');
+      if (
+        fontFamily.includes('nastaliq') ||
+        fontFamily.includes('gulzar') ||
+        fontFamily.includes('scheherazade') ||
+        fontFamily.includes('amiri') ||
+        fontFamily.includes('lateef')
+      ) {
+        setFontFamily('font-sans-custom');
+      }
+      onShowToast({
+        type: 'info',
+        title: 'English Mode Activated / انگریزی موڈ',
+        description: 'Left-to-Right layout with standard English typography enabled.'
+      });
+    } else {
+      setDirection('rtl');
+      setTextAlign('right');
+      setLineHeight('2.2');
+      setFontFamily('font-nastaliq');
+      onShowToast({
+        type: 'info',
+        title: 'Urdu Mode Activated / اردو موڈ',
+        description: 'Right-to-Left layout with classic Nastaliq calligraphy enabled.'
+      });
     }
     setTimeout(recalculatePagination, 50);
   };
@@ -1057,20 +1189,57 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
         {/* Formatting Toolbar */}
         <div className="px-3 sm:px-6 py-2 flex items-center gap-2 sm:gap-2.5 overflow-x-auto text-sm shadow-2xs">
-        {/* Font Style Dropdown */}
+        {/* Quick Language Switcher: Urdu / English */}
+        <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-300 shrink-0">
+          <button
+            id="toolbar-lang-urdu"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleLanguageMode('urdu')}
+            className={`px-2.5 py-1 text-xs font-bold rounded-md transition flex items-center gap-1 ${
+              direction === 'rtl'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Switch to Urdu Mode (اردو نستعلیق - دائیں سے بائیں)"
+          >
+            <span>🇵🇰</span>
+            <span>اردو</span>
+          </button>
+          <button
+            id="toolbar-lang-english"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleLanguageMode('english')}
+            className={`px-2.5 py-1 text-xs font-bold rounded-md transition flex items-center gap-1 ${
+              direction === 'ltr'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Switch to English Mode (Left-to-Right clean text)"
+          >
+            <span>🇬🇧</span>
+            <span>English</span>
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="h-6 w-[1px] bg-gray-200 shrink-0" />
+
+        {/* Font Style / Heading Dropdown */}
         <div className="relative shrink-0">
           <select
             id="toolbar-font-style"
+            value={currentBlockTag}
             onChange={(e) => handleFontStyleChange(e.target.value)}
-            className="bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer pr-6 appearance-none"
-            defaultValue="p"
+            className="bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-7 appearance-none"
           >
-            <option value="p">Normal Text</option>
-            <option value="h1">Heading 1</option>
-            <option value="h2">Heading 2</option>
-            <option value="h3">Heading 3</option>
-            <option value="blockquote">Quote / شعر</option>
-            <option value="pre">Code / Script</option>
+            <option value="p">Paragraph / سادہ تحریر</option>
+            <option value="h1">Heading 1 / بڑی سرخی (H1)</option>
+            <option value="h2">Heading 2 / درمیانی سرخی (H2)</option>
+            <option value="h3">Heading 3 / چھوٹی سرخی (H3)</option>
+            <option value="blockquote">Quote / اقتباس و شعر</option>
+            <option value="pre">Code / کمپیوٹر اسکرپٹ</option>
           </select>
           <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
         </div>
@@ -1081,7 +1250,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             id="toolbar-font-family"
             value={fontFamily}
             onChange={(e) => handleFontFamilyChange(e.target.value)}
-            className="bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer pr-6 appearance-none max-w-[170px] sm:max-w-[200px]"
+            className="bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-6 appearance-none max-w-[170px] sm:max-w-[200px]"
           >
             <optgroup label="اردو اور عربی فونٹس (Urdu & Arabic)">
               <option value="font-nastaliq">نستعلیق کلاسیک (Nastaliq)</option>
@@ -1090,6 +1259,16 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               <option value="font-scheherazade">شہرزاد روایتی (Scheherazade)</option>
               <option value="font-amiri">امیری نسخ (Amiri Naskh)</option>
               <option value="font-arabic-sans">نوٹو عربک سادہ (Noto Sans)</option>
+            </optgroup>
+
+            <optgroup label="✨ انگریزی اور جدید فونٹس (English & Modern)">
+              <option value="font-sans-custom">Plus Jakarta Sans (Standard English)</option>
+              <option value="font-serif-custom">Times New Roman (Formal Serif)</option>
+              <option value="font-playfair">Playfair Display (Luxury Serif)</option>
+              <option value="font-montserrat">Montserrat (Modern Clean)</option>
+              <option value="font-oswald">Oswald (Bold Headline)</option>
+              <option value="font-cinzel">Cinzel (Royal Roman)</option>
+              <option value="font-mono-custom">Typewriter (Monospace)</option>
             </optgroup>
 
             <optgroup label="✍️ تحریری اور خطاطی فونٹس (Handwriting & Cursive)">
@@ -1102,38 +1281,44 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               <option value="font-kalam">Kalam (Marker Hand-drawn)</option>
               <option value="font-indie-flower">Indie Flower (Casual Pen)</option>
             </optgroup>
-
-            <optgroup label="✨ جدید اور پیشہ ورانہ فونٹس (Modern & Editorial)">
-              <option value="font-playfair">Playfair Display (Luxury Serif)</option>
-              <option value="font-cinzel">Cinzel (Royal Roman)</option>
-              <option value="font-montserrat">Montserrat (Modern Clean)</option>
-              <option value="font-oswald">Oswald (Bold Headline)</option>
-              <option value="font-sans-custom">Plus Jakarta (Minimal Sans)</option>
-              <option value="font-serif-custom">Times New Roman (Serif)</option>
-              <option value="font-mono-custom">Typewriter (Monospace)</option>
-            </optgroup>
           </select>
           <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
         </div>
 
-        {/* Font Size Stepper [-] [16] [+] */}
-        <div className="flex items-center border border-gray-300 rounded-lg bg-gray-50 overflow-hidden shrink-0">
+        {/* Font Size Selector & Stepper [-] [Size Dropdown] [+] */}
+        <div className="flex items-center border border-gray-300 rounded-lg bg-gray-50 overflow-hidden shrink-0 shadow-2xs">
           <button
             id="toolbar-font-size-minus"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleFontSizeChange(-1)}
             className="px-2 py-1.5 hover:bg-gray-200 text-gray-600 transition"
-            title="Decrease font size"
+            title="Decrease font size (چھوٹا کریں)"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
-          <span className="px-2 py-1 text-xs sm:text-sm font-mono font-semibold text-gray-800 bg-white border-x border-gray-300 min-w-[28px] text-center">
-            {fontSize}
-          </span>
+          
+          <select
+            id="toolbar-font-size-select"
+            value={fontSize}
+            onChange={(e) => handleDirectFontSizeChange(parseInt(e.target.value, 10))}
+            className="bg-white border-x border-gray-300 px-2 py-1 text-xs sm:text-sm font-mono font-semibold text-gray-800 focus:outline-none cursor-pointer appearance-none text-center min-w-[42px]"
+            title="Selected Text Font Size (سائز منتخب کریں)"
+          >
+            {[10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 48, 56, 64, 72].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+
           <button
             id="toolbar-font-size-plus"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleFontSizeChange(1)}
             className="px-2 py-1.5 hover:bg-gray-200 text-gray-600 transition"
-            title="Increase font size"
+            title="Increase font size (بڑا کریں)"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -1142,6 +1327,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         {/* Text Color Picker Button */}
         <button
           id="toolbar-btn-color"
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => setIsColorPickerOpen(true)}
           className="p-1.5 rounded-lg hover:bg-gray-100 border border-gray-300 flex flex-col items-center justify-center transition bg-gray-50 shrink-0"
           title="Text Color / رنگ منتخب کریں"
@@ -1157,6 +1344,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         <div className="flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5 shrink-0">
           <button
             id="toolbar-btn-bold"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={handleBold}
             className={`p-1.5 rounded-md transition ${
               activeFormats.bold ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
@@ -1167,6 +1356,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           </button>
           <button
             id="toolbar-btn-italic"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={handleItalic}
             className={`p-1.5 rounded-md transition ${
               activeFormats.italic ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
@@ -1177,6 +1368,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           </button>
           <button
             id="toolbar-btn-underline"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={handleUnderline}
             className={`p-1.5 rounded-md transition ${
               activeFormats.underline ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
@@ -1191,41 +1384,49 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         <div className="flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5 shrink-0">
           <button
             id="toolbar-align-left"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleAlign('left')}
             className={`p-1.5 rounded-md transition ${
               textAlign === 'left' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
             }`}
-            title="Align Left"
+            title="Align Left (بائیں جانب)"
           >
             <AlignLeft className="w-4 h-4" />
           </button>
           <button
             id="toolbar-align-center"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleAlign('center')}
             className={`p-1.5 rounded-md transition ${
               textAlign === 'center' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
             }`}
-            title="Align Center"
+            title="Align Center (درمیان میں)"
           >
             <AlignCenter className="w-4 h-4" />
           </button>
           <button
             id="toolbar-align-right"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleAlign('right')}
             className={`p-1.5 rounded-md transition ${
               textAlign === 'right' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
             }`}
-            title="Align Right"
+            title="Align Right (دائیں جانب)"
           >
             <AlignRight className="w-4 h-4" />
           </button>
           <button
             id="toolbar-align-justify"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleAlign('justify')}
             className={`p-1.5 rounded-md transition ${
               textAlign === 'justify' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'
             }`}
-            title="Justify"
+            title="Justify (برابر پھیلاؤ)"
           >
             <AlignJustify className="w-4 h-4" />
           </button>
@@ -1235,21 +1436,25 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         <div className="flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5 shrink-0">
           <button
             id="toolbar-dir-rtl"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setDirection('rtl')}
             className={`px-2 py-1 text-xs font-semibold rounded-md transition ${
               direction === 'rtl' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'
             }`}
-            title="Right-to-Left (Urdu)"
+            title="Right-to-Left (Urdu) / دائیں سے بائیں"
           >
             RTL (اردو)
           </button>
           <button
             id="toolbar-dir-ltr"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setDirection('ltr')}
             className={`px-2 py-1 text-xs font-semibold rounded-md transition ${
               direction === 'ltr' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'
             }`}
-            title="Left-to-Right (English)"
+            title="Left-to-Right (English) / بائیں سے دائیں"
           >
             LTR
           </button>
@@ -1259,17 +1464,21 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         <div className="flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5 shrink-0">
           <button
             id="toolbar-list-bullet"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleList('unordered')}
             className="p-1.5 rounded-md text-gray-700 hover:bg-gray-200 transition"
-            title="Bullet List"
+            title="Bullet List / نقطہ والی فہرست"
           >
             <List className="w-4 h-4" />
           </button>
           <button
             id="toolbar-list-ordered"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleList('ordered')}
             className="p-1.5 rounded-md text-gray-700 hover:bg-gray-200 transition"
-            title="Numbered List"
+            title="Numbered List / نمبر وار فہرست"
           >
             <ListOrdered className="w-4 h-4" />
           </button>
