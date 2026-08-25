@@ -36,12 +36,14 @@ import {
   RefreshCw,
   Sparkles,
   Layers,
-  HelpCircle
+  HelpCircle,
+  Wand2
 } from 'lucide-react';
 import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { SavedDocument, PageSize } from '../types';
 import { UrduKeyboard } from './UrduKeyboard';
+import { AVAILABLE_TEXT_STYLES, transformTextStyle, transformLiveChar, TextStyleOption } from '../utils/textStyler';
 
 interface EditorWorkspaceProps {
   initialDocument: SavedDocument;
@@ -136,6 +138,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const [isUrduKeyboardOpen, setIsUrduKeyboardOpen] = useState(false);
+  const [isFancyFontsModalOpen, setIsFancyFontsModalOpen] = useState(false);
+  const [customFancyInput, setCustomFancyInput] = useState('Type something to start');
+  const [copiedStyleId, setCopiedStyleId] = useState<string | null>(null);
+  const [insertedStyleId, setInsertedStyleId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgressText, setExportProgressText] = useState('');
 
@@ -481,8 +487,82 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     if (type === 'unordered') executeCommand('insertUnorderedList');
   };
 
+  const handleApplyFancyStyle = (styleId: string) => {
+    setFontFamily(styleId);
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+
+    const sel = window.getSelection();
+    let selectedText = '';
+    let targetRange: Range | null = null;
+
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && sel.toString().trim().length > 0) {
+      selectedText = sel.toString();
+      targetRange = sel.getRangeAt(0);
+    } else if (
+      savedSelectionRef.current &&
+      !savedSelectionRef.current.collapsed &&
+      savedSelectionRef.current.toString().trim().length > 0
+    ) {
+      selectedText = savedSelectionRef.current.toString();
+      targetRange = savedSelectionRef.current;
+    }
+
+    if (selectedText && targetRange && sel) {
+      const styledText = transformTextStyle(selectedText, styleId);
+      sel.removeAllRanges();
+      sel.addRange(targetRange);
+      document.execCommand('insertText', false, styledText);
+      onShowToast({
+        type: 'success',
+        title: 'اسٹائل لاگو ہو گیا (Style Applied)',
+        description: 'منتخب تحریر کو نئے فونٹ انداز میں تبدیل کر دیا گیا ہے۔'
+      });
+      setTimeout(recalculatePagination, 50);
+    } else {
+      const foundStyle = AVAILABLE_TEXT_STYLES.find(s => s.id === styleId);
+      onShowToast({
+        type: 'info',
+        title: `${foundStyle?.name || 'اسٹائلش فونٹ'} فعال ہو گیا (Font Active)`,
+        description: 'اب آپ کی بورڈ سے جو بھی لکھیں گے وہ خودکار طور پر اسی فونٹ انداز میں ٹائپ ہوگا۔'
+      });
+    }
+  };
+
+  const handleInsertFancyText = (textToInsert: string, styleId?: string) => {
+    if (styleId) {
+      setFontFamily(styleId);
+      setInsertedStyleId(styleId);
+      setTimeout(() => setInsertedStyleId(null), 2000);
+    }
+
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+
+    if (savedSelectionRef.current) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedSelectionRef.current);
+      }
+    }
+
+    document.execCommand('insertText', false, textToInsert);
+
+    onShowToast({
+      type: 'success',
+      title: 'شامل کر دیا گیا (Inserted & Font Active)',
+      description: 'تحریر شامل ہو گئی ہے اور اب آگے ٹائپنگ بھی اسی فونٹ میں ہو گی۔'
+    });
+    setTimeout(recalculatePagination, 50);
+  };
+
   const handleFontFamilyChange = (fontClass: string) => {
     setFontFamily(fontClass);
+    if (fontClass.startsWith('style-')) {
+      handleApplyFancyStyle(fontClass);
+      return;
+    }
     executeCommand('fontName', fontClass);
   };
 
@@ -659,9 +739,86 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     if (char === '\n') {
       document.execCommand('insertParagraph', false);
     } else {
-      document.execCommand('insertText', false, char);
+      let charToInsert = char;
+      if (fontFamily.startsWith('style-')) {
+        let prevChar = '';
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
+            prevChar = range.startContainer.textContent?.charAt(range.startOffset - 1) || '';
+          }
+        }
+        charToInsert = transformLiveChar(char, prevChar, fontFamily);
+      }
+      document.execCommand('insertText', false, charToInsert);
     }
     recalculatePagination();
+  };
+
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (fontFamily.startsWith('style-')) {
+      if (
+        e.key.length === 1 &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        let prevChar = '';
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
+            prevChar = range.startContainer.textContent?.charAt(range.startOffset - 1) || '';
+          }
+        }
+
+        const transformed = transformLiveChar(e.key, prevChar, fontFamily);
+        if (transformed !== e.key) {
+          e.preventDefault();
+          document.execCommand('insertText', false, transformed);
+          setTimeout(recalculatePagination, 50);
+          return;
+        }
+      }
+    }
+    setTimeout(recalculatePagination, 50);
+  };
+
+  const handleEditorBeforeInput = (e: any) => {
+    if (fontFamily.startsWith('style-') && e.data && typeof e.data === 'string') {
+      let prevChar = '';
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
+          prevChar = range.startContainer.textContent?.charAt(range.startOffset - 1) || '';
+        }
+      }
+      const transformed = e.data.length === 1 
+        ? transformLiveChar(e.data, prevChar, fontFamily)
+        : transformTextStyle(e.data, fontFamily);
+      
+      if (transformed !== e.data) {
+        e.preventDefault();
+        document.execCommand('insertText', false, transformed);
+        setTimeout(recalculatePagination, 50);
+      }
+    }
+  };
+
+  const handleEditorPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (fontFamily.startsWith('style-')) {
+      const text = e.clipboardData?.getData('text/plain');
+      if (text) {
+        e.preventDefault();
+        const transformed = transformTextStyle(text, fontFamily);
+        document.execCommand('insertText', false, transformed);
+        setTimeout(recalculatePagination, 50);
+        return;
+      }
+    }
+    setTimeout(recalculatePagination, 50);
   };
 
   // Manual Add Page / Page Break insertion - adds new page sheet directly below
@@ -1308,8 +1465,20 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             id="toolbar-font-family"
             value={fontFamily}
             onChange={(e) => handleFontFamilyChange(e.target.value)}
-            className="bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-6 appearance-none max-w-[170px] sm:max-w-[200px]"
+            className="bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-6 appearance-none max-w-[170px] sm:max-w-[210px]"
           >
+            <optgroup label="🌟 اسٹائلش فونٹس و خطاطی (Fancy & Calligraphy)">
+              <option value="style-fraktur">𝔗𝔶𝔭𝔢 𝔰𝔬𝔪𝔢𝔱𝔥𝔦𝔫𝔤 (Gothic Fraktur)</option>
+              <option value="style-script-bold">𝓣𝔂𝓹𝓮 𝓼𝓸𝓶𝓮𝓽𝓱𝓲𝓷𝓰 (Bold Calligraphy)</option>
+              <option value="style-bubble-black">🅣🅨🅟🅔 🅢🅞🅜🅔 (Bubble Badge)</option>
+              <option value="style-sans-bold-italic">𝙏𝙮𝙥𝙚 𝙨𝙤𝙢𝙚𝙩𝙝𝙞𝙣𝙜 (Sans Bold Italic)</option>
+              <option value="style-double-struck">𝕋𝕪𝕡𝕖 𝕤𝕠𝕞𝕖𝕥𝕙𝕚𝕟𝕘 (Double-Struck)</option>
+              <option value="style-circle-white">Ⓣⓨⓟⓔ ⓢⓞⓜⓔ (White Circle)</option>
+              <option value="style-urdu-kashida-long">عبـــــداللہ (اردو لمبی کشیدہ)</option>
+              <option value="style-urdu-tatweel-single">عـبـداللہ (اخباری کشیدہ سرخی)</option>
+              <option value="style-urdu-spaced">عبد  اللہ (فاصلہ دار خطاطی)</option>
+            </optgroup>
+
             <optgroup label="اردو اور عربی فونٹس (Urdu & Arabic)">
               <option value="font-nastaliq">نستعلیق کلاسیک (Nastaliq)</option>
               <option value="font-gulzar">گلزار خطاطی (Gulzar)</option>
@@ -1342,6 +1511,30 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           </select>
           <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
         </div>
+
+        {/* Fancy Font Styles Quick Modal Button */}
+        <button
+          id="toolbar-btn-fancy-fonts"
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && !sel.isCollapsed && sel.toString().trim().length > 0) {
+              setCustomFancyInput(sel.toString());
+            } else if (savedSelectionRef.current && !savedSelectionRef.current.collapsed && savedSelectionRef.current.toString().trim().length > 0) {
+              setCustomFancyInput(savedSelectionRef.current.toString());
+            } else {
+              setCustomFancyInput(direction === 'rtl' ? 'عبداللہ' : 'Type something to start');
+            }
+            setIsFancyFontsModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white font-bold text-xs rounded-lg shadow-xs transition active:scale-95 shrink-0"
+          title="Fancy Font Styles & Urdu Calligraphy / اسٹائلش فونٹس و کشیدہ"
+        >
+          <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-200" />
+          <span className="hidden sm:inline">اسٹائلش فونٹس</span>
+          <span className="sm:hidden">Fancy</span>
+        </button>
 
         {/* Font Size Selector & Stepper [-] [Size Dropdown] [+] */}
         <div className="flex items-center border border-gray-300 rounded-lg bg-gray-50 overflow-hidden shrink-0 shadow-2xs">
@@ -2073,8 +2266,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                   checkActiveFormats();
                   recalculatePagination();
                 }}
-                onKeyDown={recalculatePagination}
-                onPaste={() => setTimeout(recalculatePagination, 50)}
+                onKeyDown={handleEditorKeyDown}
+                onBeforeInput={handleEditorBeforeInput}
+                onPaste={handleEditorPaste}
                 onCut={() => setTimeout(recalculatePagination, 50)}
                 onMouseUp={checkActiveFormats}
                 onSelect={checkActiveFormats}
@@ -2738,7 +2932,230 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         </div>
       )}
 
-      {/* 11. Virtual Urdu Keyboard */}
+      {/* ==================================================== */}
+      {/* 11. FANCY FONTS & URDU CALLIGRAPHY MODAL            */}
+      {/* ==================================================== */}
+      {isFancyFontsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 overflow-hidden flex flex-col max-h-[92vh] border border-gray-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-indigo-600 flex items-center justify-center text-white shadow-xs">
+                  <Sparkles className="w-4 h-4 text-amber-200" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base sm:text-lg leading-tight">
+                    اسٹائلش فونٹس و کشیدہ خطاطی
+                  </h3>
+                  <p className="text-[11px] text-gray-500">
+                    Trendy English Unicode & Urdu Kashida Calligraphy Styles
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsFancyFontsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
+              {/* Text Input to transform */}
+              <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                <label className="text-xs font-bold text-gray-700 block">
+                  یہاں تحریر لکھیں (Type text to preview in all styles):
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={customFancyInput}
+                    onChange={(e) => setCustomFancyInput(e.target.value)}
+                    placeholder="Type or paste words here..."
+                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
+                  />
+                  {customFancyInput && (
+                    <button
+                      onClick={() => setCustomFancyInput('')}
+                      className="px-2 py-2 text-xs text-gray-500 hover:text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg"
+                      title="Clear"
+                    >
+                      صاف
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick preset chips */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px]">
+                  <span className="text-gray-500 font-medium">تجویز کردہ (Presets):</span>
+                  {['عبداللہ', 'Type something to start', 'پاکستان زندہ باد', 'Urdu Designer', 'بسم اللہ'].map(
+                    (preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setCustomFancyInput(preset)}
+                        className="px-2 py-0.5 bg-white hover:bg-amber-50 hover:text-amber-800 border border-gray-200 rounded-md transition text-gray-700 font-medium"
+                      >
+                        {preset}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Styles Grid */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-bold text-gray-800 flex items-center justify-between">
+                  <span>منتخب اسٹائلز (All Available Styles):</span>
+                  <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">
+                    1-Click Insert
+                  </span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {AVAILABLE_TEXT_STYLES.map((style) => {
+                    const transformed = transformTextStyle(
+                      customFancyInput.trim() || style.sample,
+                      style.id
+                    );
+                    const isCopied = copiedStyleId === style.id;
+                    const isInserted = insertedStyleId === style.id;
+
+                    return (
+                      <div
+                        key={style.id}
+                        className="p-3 bg-white hover:bg-gray-50/80 rounded-xl border border-gray-200 hover:border-amber-300 shadow-2xs hover:shadow-xs transition flex flex-col justify-between gap-2"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] text-gray-500 pb-1 border-b border-gray-100">
+                            <span className="font-bold text-gray-800">{style.name}</span>
+                            <span className="text-[10px] text-gray-500">{style.urduName}</span>
+                          </div>
+                          
+                          <div className="py-2.5 px-2 bg-gray-50 rounded-lg my-1.5 text-center min-h-[44px] flex items-center justify-center overflow-x-auto">
+                            <span
+                              className={`text-base sm:text-lg font-semibold text-gray-900 ${
+                                style.type === 'urdu' ? 'font-nastaliq leading-loose' : 'tracking-wide'
+                              }`}
+                            >
+                              {transformed}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleInsertFancyText(transformed, style.id);
+                              setIsFancyFontsModalOpen(false);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-lg transition ${
+                              isInserted
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-2xs'
+                            }`}
+                          >
+                            {isInserted ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>شامل ہو گیا</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>صفحے میں ڈالیں</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(transformed);
+                              setCopiedStyleId(style.id);
+                              setTimeout(() => setCopiedStyleId(null), 2000);
+                              onShowToast({
+                                type: 'success',
+                                title: 'کاپی ہو گیا (Copied)',
+                                description: `${style.name} کلپ بورڈ پر کاپی ہو گیا`
+                              });
+                            }}
+                            className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition flex items-center gap-1"
+                            title="Copy to clipboard"
+                          >
+                            {isCopied ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            <span>{isCopied ? 'Copied' : 'کاپی'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Islamic Calligraphic Symbols & Quranic Accents */}
+              <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-200/70 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+                  <span>اسلامی خطاطی و علامات (Islamic Calligraphy Symbols):</span>
+                  <span className="text-[10px] text-amber-700 font-normal">1-Click Insert</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { char: '﷽', label: 'Bismillah' },
+                    { char: 'ﷺ', label: 'PBUH' },
+                    { char: 'ﷻ', label: 'Jalla Jalaluhu' },
+                    { char: 'ؓ', label: 'Radiyallahu Anhu' },
+                    { char: 'ؒ', label: 'Rahmatullah' },
+                    { char: '« »', label: 'Quotes' },
+                    { char: '﴾ ﴿', label: 'Ayat Brackets' },
+                    { char: '—', label: 'Em Dash' },
+                    { char: '٭', label: 'Star Asterisk' },
+                    { char: '؏', label: 'Misra' }
+                  ].map((sym) => (
+                    <button
+                      key={sym.char}
+                      type="button"
+                      onClick={() => {
+                        handleInsertFancyText(sym.char);
+                        setIsFancyFontsModalOpen(false);
+                      }}
+                      className="px-2.5 py-1.5 bg-white hover:bg-amber-100 text-gray-900 hover:text-amber-950 font-nastaliq text-base rounded-lg border border-amber-200 shadow-2xs transition flex items-center gap-1"
+                      title={sym.label}
+                    >
+                      <span className="font-bold">{sym.char}</span>
+                      <span className="text-[10px] font-sans text-gray-500 font-normal">
+                        {sym.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between shrink-0">
+              <span className="text-[11px] text-gray-500">
+                ٹپ: ٹول بار میں فونٹ ڈراپ ڈاؤن سے بھی کسی بھی وقت منتخب کر سکتے ہیں۔
+              </span>
+              <button
+                onClick={() => setIsFancyFontsModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition"
+              >
+                بند کریں (Close)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. Virtual Urdu Keyboard */}
       <UrduKeyboard
         isOpen={isUrduKeyboardOpen}
         onClose={() => setIsUrduKeyboardOpen(false)}
