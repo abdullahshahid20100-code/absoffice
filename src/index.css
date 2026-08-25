@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+.font-nastaliq {
+  font-family: 'Noto Nastaliq Urdu', 'Gulzar', 'Jameel Noori Nastaleeq', 'Nafees Nastaleeq', serif;
+  line-height: 2.2;
+}
+
+.font-gulzar {
+  font-family: 'Gulzar', 'Noto Nastaliq Urdu', serif;
+}
+
+.font-amiri {
+  font-family: 'Amiri', serif;
+}
+
+.font-arabic-sans {
+  font-family: 'Noto Sans Arabic', sans-serif;
+}
+
+.font-lateef {
+  font-family: 'Lateef', serif;
+  line-height: 2.0;
+}
+
+.font-scheherazade {
+  font-family: 'Scheherazade New', serif;
+}
+
+/* Canva Handwriting & Cursive Scripts */
+.font-caveat {
+  font-family: 'Caveat', cursive, sans-serif;
+}
+
+.font-dancing {
+  font-family: 'Dancing Script', cursive, sans-serif;
+}
+
+.font-great-vibes {
+  font-family: 'Great Vibes', cursive, serif;
+}
+
+.font-pacifico {
+  font-family: 'Pacifico', cursive, sans-serif;
+}
+
+.font-sacramento {
+  font-family: 'Sacramento', cursive, serif;
+}
+
+.font-alex-brush {
+  font-family: 'Alex Brush', cursive, serif;
+}
+
+.font-kalam {
+  font-family: 'Kalam', cursive, sans-serif;
+}
+
+.font-indie-flower {
+  font-family: 'Indie Flower', cursive, sans-serif;
+}
+
+/* Canva Modern, Luxury Serif & Editorial */
+.font-playfair {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.04em;
+}
+
+.font-montserrat {
+  font-family: 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-oswald {
+  font-family: 'Oswald', sans-serif;
+}
+
+.font-sans-custom {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+.font-serif-custom {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.font-mono-custom {
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+}
+
+/* Document canvas and editing styles */
+.document-canvas-editable {
+  outline: none;
+  min-height: 100%;
+}
+
+.document-canvas-editable[placeholder]:empty:before {
+  content: attr(placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+/* Multi-page continuous background sheet styling */
+.msword-page-sheet {
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.page-frame-boundary {
+  box-sizing: border-box;
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.document-canvas-editable {
+  outline: none;
+  min-height: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.document-canvas-editable * {
+  box-sizing: border-box;
+}
+
+.msword-page-container {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+}
+
+.document-page-break-section {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* Print styles for authentic PDF and print output with true page breaks */
+@media print {
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .document-page-break-section {
+    page-break-before: always !important;
+    break-before: page !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .page-gap-spacer {
+    display: none !important;
+    height: 0 !important;
+  }
+  .msword-page-container {
+    box-shadow: none !important;
+    margin: 0 !important;
+    page-break-after: always;
+    break-after: page;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+}

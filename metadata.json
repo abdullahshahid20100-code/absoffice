@@ -1,0 +1,6 @@
+{
+  "name": "ABS Office Notepad",
+  "description": "ABS Office Notepad - A modern document editor and template workspace designed for Urdu Nastaliq and multilingual document publishing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
