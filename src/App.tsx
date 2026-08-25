@@ -5,55 +5,46 @@ import { TemplateCards } from './components/TemplateCards';
 import { RecentProjects } from './components/RecentProjects';
 import { TemplateModal } from './components/TemplateModal';
 import { CustomSizeModal } from './components/CustomSizeModal';
-import { AuthModal } from './components/AuthModal';
 import { EditorWorkspace } from './components/EditorWorkspace';
 import { ToastContainer, ToastMessage } from './components/Toast';
-import { SavedDocument, TemplateId, PageSize, AuthUser } from './types';
+import { SavedDocument, TemplateId, PageSize } from './types';
 import { TEMPLATES, INITIAL_SAVED_DOCS } from './data/templates';
 
-// Helper to get storage key for user-specific document isolation
-const getUserDocsStorageKey = (user: AuthUser | null): string => {
-  if (!user || !user.email) return 'officeweb_docs_guest';
-  const cleanEmail = user.email.toLowerCase().trim().replace(/[^a-z0-9_.-]/g, '_');
-  return `officeweb_docs_${cleanEmail}`;
-};
+const STORAGE_KEY = 'officeweb_documents';
 
-// Helper to load documents strictly belonging to the active user
-const loadDocsForUser = (user: AuthUser | null): SavedDocument[] => {
-  const key = getUserDocsStorageKey(user);
-  const local = localStorage.getItem(key);
+// Helper to load documents
+const loadSavedDocs = (): SavedDocument[] => {
+  const local = localStorage.getItem(STORAGE_KEY);
   if (local !== null) {
     try {
       const parsed = JSON.parse(local);
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed;
       }
     } catch (e) {
-      console.error('Failed to parse user docs', e);
+      console.error('Failed to parse saved docs', e);
     }
   }
 
-  // Check legacy global storage as fallback for initial user
-  if (user?.email === 'abdullahshahid.20100@gmail.com') {
-    const legacyGlobal = localStorage.getItem('officeweb_documents');
-    if (legacyGlobal !== null) {
-      try {
-        const parsedLegacy = JSON.parse(legacyGlobal);
-        if (Array.isArray(parsedLegacy)) {
-          localStorage.setItem(key, JSON.stringify(parsedLegacy));
-          return parsedLegacy;
-        }
-      } catch (e) {}
-    }
+  // Check guest or user key as fallback
+  const guestDocs = localStorage.getItem('officeweb_docs_guest');
+  if (guestDocs !== null) {
+    try {
+      const parsedGuest = JSON.parse(guestDocs);
+      if (Array.isArray(parsedGuest) && parsedGuest.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedGuest));
+        return parsedGuest;
+      }
+    } catch (e) {}
   }
 
-  // First time initialization for new user or guest: give clean starter templates
+  // First time initialization: give clean starter templates
   const initialDocs: SavedDocument[] = INITIAL_SAVED_DOCS.map((doc, idx) => ({
     ...doc,
-    id: `doc-${user?.username || 'user'}-${Date.now()}-${idx}`,
+    id: `doc-${Date.now()}-${idx}`,
     updatedAt: Date.now() - (idx * 3600000)
   }));
-  localStorage.setItem(key, JSON.stringify(initialDocs));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(initialDocs));
   return initialDocs;
 };
 
@@ -62,64 +53,16 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'home' | 'editor'>('home');
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isCustomSizeModalOpen, setIsCustomSizeModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // User state initialized from persistent localStorage (null for new visitors)
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const savedUser = localStorage.getItem('officeweb_active_user');
-    if (savedUser) {
-      try {
-        return JSON.parse(savedUser);
-      } catch (e) {
-        console.error('Failed to parse active user', e);
-      }
-    }
-    return null;
-  });
-
-  // Saved documents strictly filtered & isolated per logged-in user or guest
+  // Saved documents
   const [savedDocuments, setSavedDocuments] = useState<SavedDocument[]>(() => {
-    const savedUser = localStorage.getItem('officeweb_active_user');
-    let initialUser: AuthUser | null = null;
-    if (savedUser) {
-      try {
-        initialUser = JSON.parse(savedUser);
-      } catch (e) {}
-    }
-    return loadDocsForUser(initialUser);
+    return loadSavedDocs();
   });
 
-  // Keep documents in sync when user logs in, switches account, or logs out
+  // Sync saved documents with localStorage
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('officeweb_active_user', JSON.stringify(user));
-      // Add to registered users list
-      const savedUsersRaw = localStorage.getItem('officeweb_registered_users');
-      let registeredUsers: AuthUser[] = [];
-      if (savedUsersRaw) {
-        try { registeredUsers = JSON.parse(savedUsersRaw); } catch (e) {}
-      }
-      const existingIdx = registeredUsers.findIndex(u => u.email.toLowerCase() === user.email.toLowerCase());
-      if (existingIdx >= 0) {
-        registeredUsers[existingIdx] = user;
-      } else {
-        registeredUsers.push(user);
-      }
-      localStorage.setItem('officeweb_registered_users', JSON.stringify(registeredUsers));
-    } else {
-      localStorage.removeItem('officeweb_active_user');
-    }
-
-    // Load documents belonging exclusively to this user
-    const userDocs = loadDocsForUser(user);
-    setSavedDocuments(userDocs);
-  }, [user]);
-
-  // Sync current user's saved documents with localStorage
-  useEffect(() => {
-    const key = getUserDocsStorageKey(user);
-    localStorage.setItem(key, JSON.stringify(savedDocuments));
-  }, [savedDocuments, user]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedDocuments));
+  }, [savedDocuments]);
 
   // Current active document in editor
   const [activeDoc, setActiveDoc] = useState<SavedDocument>(() => {
@@ -262,27 +205,24 @@ export default function App() {
       {/* Main View Router: Home Page or Editor Workspace */}
       {currentView === 'home' ? (
         <div className="flex-1 flex flex-col">
-          {/* Top Navigation Header (image_1.png) */}
+          {/* Top Navigation Header */}
           <Header
             onOpenTemplates={() => setIsTemplateModalOpen(true)}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            user={user}
-            onLogout={() => setUser(null)}
           />
 
-          {/* Hero Section with Blue Gradient & Urdu Calligraphy (image_1.png) */}
+          {/* Hero Section with Blue Gradient & Urdu Calligraphy */}
           <HeroSection
             onOpenTemplates={() => setIsTemplateModalOpen(true)}
             activeView="home"
           />
 
-          {/* 5 Explore Templates Cards (image_1.png) */}
+          {/* 5 Explore Templates Cards */}
           <TemplateCards
             onSelectTemplate={handleSelectTemplate}
             onOpenCustomSize={() => setIsCustomSizeModalOpen(true)}
           />
 
-          {/* Recent Projects Section (image_1.png) */}
+          {/* Recent Projects Section */}
           <RecentProjects
             documents={savedDocuments}
             onOpenDoc={handleOpenDoc}
@@ -311,7 +251,7 @@ export default function App() {
           </footer>
         </div>
       ) : (
-        /* Full-featured Document Editor Workspace (image_3.png) */
+        /* Full-featured Document Editor Workspace */
         <EditorWorkspace
           initialDocument={activeDoc}
           onBack={() => setCurrentView('home')}
@@ -321,7 +261,7 @@ export default function App() {
         />
       )}
 
-      {/* Templates Modal Overlay (image_2.png) */}
+      {/* Templates Modal Overlay */}
       <TemplateModal
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
@@ -337,16 +277,6 @@ export default function App() {
         isOpen={isCustomSizeModalOpen}
         onClose={() => setIsCustomSizeModalOpen(false)}
         onApplyCustomSize={handleApplyCustomSize}
-      />
-
-      {/* Login & Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onShowToast={addToast}
-        onLoginSuccess={(u) => {
-          setUser(u);
-        }}
       />
     </div>
   );
