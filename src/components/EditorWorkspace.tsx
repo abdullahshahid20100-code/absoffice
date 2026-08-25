@@ -78,7 +78,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [docId, setDocId] = useState(initialDocument.id);
   const [title, setTitle] = useState(initialDocument.title || 'Blank Document');
   const [fontFamily, setFontFamily] = useState(initialDocument.fontFamily || 'font-nastaliq');
-  const [fontSize, setFontSize] = useState(initialDocument.fontSize || 16);
+  const [baseFontSize, setBaseFontSize] = useState<number>(initialDocument.fontSize || 18);
+  const [fontSize, setFontSize] = useState<number>(initialDocument.fontSize || 18);
   const [lineHeight, setLineHeight] = useState(initialDocument.lineHeight || '2.2');
   const [wordSpacing, setWordSpacing] = useState(initialDocument.wordSpacing || 'normal');
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>(
@@ -161,6 +162,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const documentContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspaceScrollRef = useRef<HTMLElement>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
 
   // Calculate dynamic multi-page count and live stats accurately
   const recalculatePagination = useCallback(() => {
@@ -261,8 +263,20 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     setActivePageIndex(currentPage);
   };
 
+  // Save user selection range
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current) {
+      const range = sel.getRangeAt(0);
+      if (editorRef.current.contains(range.commonAncestorContainer)) {
+        savedSelectionRef.current = range.cloneRange();
+      }
+    }
+  };
+
   // Check active format states on selection and detect active heading/block & font size
   const checkActiveFormats = () => {
+    saveSelection();
     try {
       setActiveFormats({
         bold: document.queryCommandState('bold'),
@@ -277,21 +291,34 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && editorRef.current) {
       let node: Node | null = sel.anchorNode;
+      let foundBlock = false;
+      let foundSize = false;
+
       while (node && node !== editorRef.current) {
         if (node instanceof HTMLElement) {
-          const tag = node.tagName.toLowerCase();
-          if (['h1', 'h2', 'h3', 'p', 'blockquote', 'pre'].includes(tag)) {
-            setCurrentBlockTag(tag as any);
-            break;
+          if (!foundBlock) {
+            const tag = node.tagName.toLowerCase();
+            if (['h1', 'h2', 'h3', 'p', 'blockquote', 'pre'].includes(tag)) {
+              setCurrentBlockTag(tag as any);
+              foundBlock = true;
+            }
           }
-          if (node.style && node.style.fontSize) {
+          if (!foundSize && node.style && node.style.fontSize) {
             const pxSize = parseInt(node.style.fontSize, 10);
             if (pxSize && !isNaN(pxSize)) {
               setFontSize(pxSize);
+              foundSize = true;
             }
           }
         }
         node = node.parentNode;
+      }
+
+      if (!foundBlock) {
+        setCurrentBlockTag('p');
+      }
+      if (!foundSize) {
+        setFontSize(baseFontSize);
       }
     }
   };
@@ -489,61 +516,92 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   // Precise font size handler - ONLY applies to selected text if text is selected, else sets default
   const applyFontSize = (targetSize: number) => {
     const clampedSize = Math.max(10, Math.min(72, targetSize));
-    setFontSize(clampedSize);
+    if (!editorRef.current) return;
 
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      // No text highlighted, set base editor font size
-      if (editorRef.current) {
-        editorRef.current.style.fontSize = `${clampedSize}px`;
-      }
-      setTimeout(recalculatePagination, 50);
-      return;
-    }
+    let sel = window.getSelection();
+    let range: Range | null = null;
 
-    const range = sel.getRangeAt(0);
-    if (!editorRef.current || !editorRef.current.contains(range.commonAncestorContainer)) {
-      return;
-    }
-
-    // Check if the selected text is already entirely wrapped in a span
-    const startNode = range.startContainer;
-    const endNode = range.endContainer;
-    const startParent = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as HTMLElement);
-    const endParent = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : (endNode as HTMLElement);
-
-    if (
-      startParent &&
-      startParent === endParent &&
-      startParent.tagName === 'SPAN' &&
-      range.toString().trim() === (startParent.textContent || '').trim()
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && sel.toString().trim().length > 0) {
+      range = sel.getRangeAt(0);
+    } else if (
+      savedSelectionRef.current &&
+      !savedSelectionRef.current.collapsed &&
+      savedSelectionRef.current.toString().trim().length > 0
     ) {
-      startParent.style.fontSize = `${clampedSize}px`;
-      const newRange = document.createRange();
-      newRange.selectNodeContents(startParent);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
+      range = savedSelectionRef.current;
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+
+    const isTextSelected =
+      range &&
+      !range.collapsed &&
+      range.toString().length > 0 &&
+      editorRef.current.contains(range.commonAncestorContainer);
+
+    if (!isTextSelected) {
+      // No text highlighted, set base editor font size for unstyled text
+      setBaseFontSize(clampedSize);
+      setFontSize(clampedSize);
       setTimeout(recalculatePagination, 50);
       return;
     }
 
-    // Wrap the selected range in a styled span
-    try {
-      const extracted = range.extractContents();
-      const span = document.createElement('span');
-      span.style.fontSize = `${clampedSize}px`;
-      span.appendChild(extracted);
-      range.insertNode(span);
+    // Text IS selected! Apply ONLY to the selected text range
+    if (range && sel) {
+      try {
+        const commonParent =
+          range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+            ? range.commonAncestorContainer.parentElement
+            : (range.commonAncestorContainer as HTMLElement);
 
-      // Re-highlight the newly created span so consecutive +/- clicks work smoothly
-      const newRange = document.createRange();
-      newRange.selectNodeContents(span);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-    } catch (e) {
-      console.warn('Font size selection wrap fallback:', e);
+        if (
+          commonParent &&
+          commonParent.tagName === 'SPAN' &&
+          commonParent !== editorRef.current &&
+          commonParent.textContent?.trim() === range.toString().trim()
+        ) {
+          commonParent.style.fontSize = `${clampedSize}px`;
+          const newRange = document.createRange();
+          newRange.selectNodeContents(commonParent);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          savedSelectionRef.current = newRange.cloneRange();
+        } else {
+          // Extract contents and wrap with single styled span
+          const extracted = range.extractContents();
+          const span = document.createElement('span');
+          span.style.fontSize = `${clampedSize}px`;
+          span.appendChild(extracted);
+          range.insertNode(span);
+
+          // Re-select span contents cleanly
+          const newRange = document.createRange();
+          newRange.selectNodeContents(span);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          savedSelectionRef.current = newRange.cloneRange();
+        }
+      } catch (e) {
+        console.warn('Font size selection wrap fallback:', e);
+        try {
+          document.execCommand('styleWithCSS', false, 'true');
+          document.execCommand('fontSize', false, '7');
+          const bigEls = editorRef.current.querySelectorAll(
+            'span[style*="-webkit-xxx-large"], font[size="7"]'
+          );
+          bigEls.forEach((el) => {
+            (el as HTMLElement).style.fontSize = `${clampedSize}px`;
+          });
+        } catch (e2) {
+          console.error('execCommand failed:', e2);
+        }
+      }
     }
 
+    setFontSize(clampedSize);
     setTimeout(recalculatePagination, 50);
   };
 
@@ -2019,10 +2077,12 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                 onPaste={() => setTimeout(recalculatePagination, 50)}
                 onCut={() => setTimeout(recalculatePagination, 50)}
                 onMouseUp={checkActiveFormats}
+                onSelect={checkActiveFormats}
+                onPointerUp={checkActiveFormats}
                 placeholder="یہاں لکھنا شروع کیجیے... (Type here in Urdu or English)"
                 className={`document-canvas-editable w-full focus:outline-none ${fontFamily}`}
                 style={{
-                  fontSize: `${fontSize}px`,
+                  fontSize: `${baseFontSize}px`,
                   textAlign: textAlign,
                   lineHeight: lineHeight,
                   wordSpacing: wordSpacing,
