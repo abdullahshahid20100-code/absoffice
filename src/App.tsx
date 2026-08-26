@@ -8,45 +8,13 @@ import { CustomSizeModal } from './components/CustomSizeModal';
 import { EditorWorkspace } from './components/EditorWorkspace';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { SavedDocument, TemplateId, PageSize } from './types';
-import { TEMPLATES, INITIAL_SAVED_DOCS } from './data/templates';
-
-const STORAGE_KEY = 'officeweb_documents';
-
-// Helper to load documents
-const loadSavedDocs = (): SavedDocument[] => {
-  const local = localStorage.getItem(STORAGE_KEY);
-  if (local !== null) {
-    try {
-      const parsed = JSON.parse(local);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    } catch (e) {
-      console.error('Failed to parse saved docs', e);
-    }
-  }
-
-  // Check guest or user key as fallback
-  const guestDocs = localStorage.getItem('officeweb_docs_guest');
-  if (guestDocs !== null) {
-    try {
-      const parsedGuest = JSON.parse(guestDocs);
-      if (Array.isArray(parsedGuest) && parsedGuest.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedGuest));
-        return parsedGuest;
-      }
-    } catch (e) {}
-  }
-
-  // First time initialization: give clean starter templates
-  const initialDocs: SavedDocument[] = INITIAL_SAVED_DOCS.map((doc, idx) => ({
-    ...doc,
-    id: `doc-${Date.now()}-${idx}`,
-    updatedAt: Date.now() - (idx * 3600000)
-  }));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(initialDocs));
-  return initialDocs;
-};
+import { TEMPLATES } from './data/templates';
+import {
+  getOrCreateDeviceId,
+  loadUserDocuments,
+  saveUserDocuments,
+  clearUserDocuments
+} from './utils/storage';
 
 export default function App() {
   // Navigation & Views
@@ -54,15 +22,18 @@ export default function App() {
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isCustomSizeModalOpen, setIsCustomSizeModalOpen] = useState(false);
 
-  // Saved documents
+  // Device UUID for scoped browser storage
+  const [deviceId] = useState<string>(() => getOrCreateDeviceId());
+
+  // Saved documents scoped strictly to this browser/device
   const [savedDocuments, setSavedDocuments] = useState<SavedDocument[]>(() => {
-    return loadSavedDocs();
+    return loadUserDocuments();
   });
 
-  // Sync saved documents with localStorage
+  // Sync saved documents with scoped localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedDocuments));
-  }, [savedDocuments]);
+    saveUserDocuments(savedDocuments, deviceId);
+  }, [savedDocuments, deviceId]);
 
   // Current active document in editor
   const [activeDoc, setActiveDoc] = useState<SavedDocument>(() => {
@@ -113,6 +84,7 @@ export default function App() {
       textAlign: tpl.defaultAlign,
       direction: tpl.defaultDirection,
       pageSize: 'A4',
+      deviceId: deviceId,
       updatedAt: Date.now(),
       wordCount: 0,
       charCount: 0
@@ -142,6 +114,7 @@ export default function App() {
       textAlign: 'right',
       direction: 'rtl',
       pageSize: config.pageSize,
+      deviceId: deviceId,
       updatedAt: Date.now(),
       wordCount: 0,
       charCount: 0
@@ -160,13 +133,17 @@ export default function App() {
 
   // Save document from editor
   const handleSaveDoc = (doc: SavedDocument) => {
-    setActiveDoc(doc);
+    const scopedDoc: SavedDocument = {
+      ...doc,
+      deviceId: deviceId
+    };
+    setActiveDoc(scopedDoc);
     setSavedDocuments((prev) => {
-      const exists = prev.some((d) => d.id === doc.id);
+      const exists = prev.some((d) => d.id === scopedDoc.id);
       if (exists) {
-        return prev.map((d) => (d.id === doc.id ? doc : d));
+        return prev.map((d) => (d.id === scopedDoc.id ? scopedDoc : d));
       } else {
-        return [doc, ...prev];
+        return [scopedDoc, ...prev];
       }
     });
   };
@@ -177,6 +154,7 @@ export default function App() {
       ...doc,
       id: 'doc-' + Date.now(),
       title: `${doc.title} (Copy)`,
+      deviceId: deviceId,
       updatedAt: Date.now()
     };
     setSavedDocuments((prev) => [duplicated, ...prev]);
@@ -194,6 +172,17 @@ export default function App() {
       type: 'info',
       title: 'Document Deleted',
       description: 'Document removed from recent projects.'
+    });
+  };
+
+  // Clear all documents for this device
+  const handleClearAllDocs = () => {
+    clearUserDocuments(deviceId);
+    setSavedDocuments([]);
+    addToast({
+      type: 'info',
+      title: 'History Cleared',
+      description: 'Saved documents on this browser have been cleared.'
     });
   };
 
@@ -228,6 +217,7 @@ export default function App() {
             onOpenDoc={handleOpenDoc}
             onDuplicateDoc={handleDuplicateDoc}
             onDeleteDoc={handleDeleteDoc}
+            onClearAll={handleClearAllDocs}
             onOpenTemplates={() => setIsTemplateModalOpen(true)}
           />
 

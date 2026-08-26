@@ -26,6 +26,7 @@ import {
   ZoomIn,
   ZoomOut,
   Square,
+  Columns2,
   FilePlus2,
   Download,
   Printer,
@@ -121,6 +122,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [textColor, setTextColor] = useState('#1e293b');
   const [zoomLevel, setZoomLevel] = useState(100);
 
+  // View Mode: Single Page vs Two-Page (Side-by-Side)
+  const [pageViewMode, setPageViewMode] = useState<'single' | 'dual'>(initialDocument.viewMode || 'single');
+
   // Pagination State
   const [pagesCount, setPagesCount] = useState(1);
   const [activePageIndex, setActivePageIndex] = useState(1);
@@ -183,39 +187,54 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     // Direct text container inner children (top-level elements)
     const children = Array.from(contentEl.children) as HTMLElement[];
     
-    // Clear any previous invalid inline margin styles if content is within page
-    children.forEach((child) => {
-      if (child.getAttribute('data-page-break') === 'true' || child.classList.contains('document-page-break-section')) {
-        return;
-      }
-      
-      // Calculate child position without its extra margin
-      const currentMargin = parseInt(child.style.marginTop || '0', 10) || 0;
-      const baseTop = child.offsetTop - currentMargin;
-      const childHeight = child.offsetHeight;
-      const baseBottom = baseTop + childHeight;
-      
-      const pageIndex = Math.floor(baseTop / pagePitch);
-      const sheetLimit = pageIndex * pagePitch + sheetHeight - safeBottom;
-      const nextSheetTop = (pageIndex + 1) * pagePitch + safeTop;
-
-      if (baseBottom > sheetLimit) {
-        // Must jump to next page
-        const neededMargin = Math.max(0, nextSheetTop - baseTop);
-        if (child.style.marginTop !== `${neededMargin}px`) {
-          child.style.marginTop = `${neededMargin}px`;
+    if (pageViewMode === 'dual') {
+      // In dual 2-page view, clear vertical jump margins so text flows seamlessly through CSS 2-column spread
+      children.forEach((child) => {
+        if (child.getAttribute('data-page-break') !== 'true' && !child.classList.contains('document-page-break-section')) {
+          if (child.style.marginTop) {
+            child.style.marginTop = '';
+          }
         }
-      } else {
-        if (child.style.marginTop) {
-          child.style.marginTop = '';
+      });
+      const currentHeight = contentEl.scrollHeight;
+      const pageBreaks = contentEl.querySelectorAll('[data-page-break="true"]').length;
+      const calculatedPages = Math.max(2, Math.max(1 + pageBreaks, Math.ceil((currentHeight - 20) / sheetHeight) * 2));
+      setPagesCount(calculatedPages);
+    } else {
+      // Clear any previous invalid inline margin styles if content is within page
+      children.forEach((child) => {
+        if (child.getAttribute('data-page-break') === 'true' || child.classList.contains('document-page-break-section')) {
+          return;
         }
-      }
-    });
+        
+        // Calculate child position without its extra margin
+        const currentMargin = parseInt(child.style.marginTop || '0', 10) || 0;
+        const baseTop = child.offsetTop - currentMargin;
+        const childHeight = child.offsetHeight;
+        const baseBottom = baseTop + childHeight;
+        
+        const pageIndex = Math.floor(baseTop / pagePitch);
+        const sheetLimit = pageIndex * pagePitch + sheetHeight - safeBottom;
+        const nextSheetTop = (pageIndex + 1) * pagePitch + safeTop;
 
-    const currentHeight = contentEl.scrollHeight;
-    const pageBreaks = contentEl.querySelectorAll('[data-page-break="true"]').length;
-    const calculatedPages = Math.max(1 + pageBreaks, Math.max(1, Math.ceil((currentHeight - 20) / pagePitch)));
-    setPagesCount(calculatedPages);
+        if (baseBottom > sheetLimit) {
+          // Must jump to next page
+          const neededMargin = Math.max(0, nextSheetTop - baseTop);
+          if (child.style.marginTop !== `${neededMargin}px`) {
+            child.style.marginTop = `${neededMargin}px`;
+          }
+        } else {
+          if (child.style.marginTop) {
+            child.style.marginTop = '';
+          }
+        }
+      });
+
+      const currentHeight = contentEl.scrollHeight;
+      const pageBreaks = contentEl.querySelectorAll('[data-page-break="true"]').length;
+      const calculatedPages = Math.max(1 + pageBreaks, Math.max(1, Math.ceil((currentHeight - 20) / pagePitch)));
+      setPagesCount(calculatedPages);
+    }
 
     // Live text statistics
     const rawText = contentEl.innerText || '';
@@ -233,7 +252,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     setCharCount(chars);
     setCharNoSpacesCount(charsNoSpaces);
     setParagraphsCount(paragraphs);
-  }, [activeSheetDim.height, hasBorder, borderInset]);
+  }, [activeSheetDim.height, hasBorder, borderInset, pageViewMode]);
 
   // Set initial content and attach image click listeners
   useEffect(() => {
@@ -264,9 +283,17 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const handleScroll = () => {
     if (!workspaceScrollRef.current) return;
     const scrollTop = workspaceScrollRef.current.scrollTop;
-    const pageGapHeight = (activeSheetDim.height + 40) * (zoomLevel / 100);
-    const currentPage = Math.min(pagesCount, Math.max(1, Math.floor((scrollTop + 150) / pageGapHeight) + 1));
-    setActivePageIndex(currentPage);
+    if (pageViewMode === 'dual') {
+      const rowHeight = (activeSheetDim.height + 40) * (zoomLevel / 100);
+      const currentRow = Math.floor((scrollTop + 150) / rowHeight);
+      const totalPages = pageViewMode === 'dual' ? Math.max(2, pagesCount % 2 === 0 ? pagesCount : pagesCount + 1) : pagesCount;
+      const currentPage = Math.min(totalPages, Math.max(1, currentRow * 2 + 1));
+      setActivePageIndex(currentPage);
+    } else {
+      const pageGapHeight = (activeSheetDim.height + 40) * (zoomLevel / 100);
+      const currentPage = Math.min(pagesCount, Math.max(1, Math.floor((scrollTop + 150) / pageGapHeight) + 1));
+      setActivePageIndex(currentPage);
+    }
   };
 
   // Save user selection range
@@ -1006,6 +1033,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       textAlign,
       direction,
       pageSize,
+      viewMode: pageViewMode,
+      deviceId: initialDocument.deviceId,
       updatedAt: Date.now(),
       wordCount,
       charCount
@@ -1783,6 +1812,52 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         <div className="h-6 w-[1px] bg-gray-200 shrink-0" />
 
         {/* ==================================================== */}
+        {/* VIEW MODE TOGGLE: SINGLE PAGE vs TWO-PAGE (DUAL)    */}
+        {/* ==================================================== */}
+        <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-300 shrink-0">
+          <button
+            id="toolbar-view-single"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setPageViewMode('single');
+              setTimeout(recalculatePagination, 50);
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+              pageViewMode === 'single'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Single Page View / ایک صفحہ"
+          >
+            <Square className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">1 Page</span>
+          </button>
+          <button
+            id="toolbar-view-dual"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setPageViewMode('dual');
+              setTimeout(recalculatePagination, 50);
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+              pageViewMode === 'dual'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Two-Page Side-by-Side View (MS Word style) / دو صفحات (بالمقابل)"
+          >
+            <Columns2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">2 Pages (Side-by-Side)</span>
+            <span className="sm:hidden">2 Pages</span>
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="h-6 w-[1px] bg-gray-200 shrink-0" />
+
+        {/* ==================================================== */}
         {/* 1. FRAME / BORDER SETTINGS BUTTON                    */}
         {/* ==================================================== */}
         <button
@@ -2077,254 +2152,323 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 sm:p-8 md:p-12 flex flex-col items-center bg-[#1e293b] relative"
       >
-        {/* Floating Page Status & Zoom Controls with Quick Add Page */}
-        <div className="fixed bottom-6 right-6 z-20 flex items-center gap-2.5 bg-gray-900/90 text-white backdrop-blur-md px-3.5 py-2 rounded-full shadow-2xl border border-gray-700 no-print text-xs">
-          <div className="flex items-center gap-1.5 pr-2.5 border-r border-gray-700 font-medium">
-            <span className="text-gray-400">Page</span>
-            <span className="text-blue-400 font-bold">{activePageIndex}</span>
-            <span className="text-gray-400">of</span>
-            <span className="text-white font-bold">{pagesCount}</span>
-          </div>
+        {/* Floating Page Status & Zoom Controls with Quick Add Page and View Mode */}
+        {(() => {
+          const displayedPagesCount = pageViewMode === 'dual'
+            ? Math.max(2, pagesCount % 2 === 0 ? pagesCount : pagesCount + 1)
+            : pagesCount;
 
-          <button
-            id="floating-btn-add-page"
-            onClick={handleAddPage}
-            className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-full font-semibold text-[11px] transition shadow-xs cursor-pointer active:scale-95"
-            title="Add New Page (نیا صفحہ شامل کریں)"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Page</span>
-          </button>
-
-          {pagesCount > 1 && (
-            <button
-              id="floating-btn-delete-page"
-              onClick={() => handleDeletePage()}
-              className="flex items-center gap-1 px-2.5 py-1 bg-red-600/80 hover:bg-red-600 active:bg-red-700 rounded-full font-semibold text-[11px] transition shadow-xs cursor-pointer active:scale-95"
-              title="Delete Page (صفحہ حذف کریں)"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
-            </button>
-          )}
-
-          <div className="flex items-center gap-1 pl-1 border-l border-gray-700">
-            <button
-              onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}
-              className="p-1 hover:bg-gray-800 rounded-full transition"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="font-mono px-1 font-semibold min-w-[32px] text-center">{zoomLevel}%</span>
-            <button
-              onClick={() => setZoomLevel(Math.min(150, zoomLevel + 10))}
-              className="p-1 hover:bg-gray-800 rounded-full transition"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Multi-Page Canvas Frame Wrapper */}
-        <div
-          className="transition-transform duration-150 origin-top flex flex-col items-center"
-          style={{ transform: `scale(${zoomLevel / 100})` }}
-        >
-          <div
-            ref={documentContainerRef}
-            id="printable-document-container"
-            className="relative"
-            style={{ width: `${activeSheetDim.width}px` }}
-          >
-            {/* Visual Multi-Page Background Sheets */}
-            {Array.from({ length: pagesCount }).map((_, index) => {
-              const pageNumber = index + 1;
-              return (
-                <div
-                  key={`page-bg-${pageNumber}`}
-                  id={`page-sheet-${pageNumber}`}
-                  className="msword-page-sheet w-full bg-white rounded-xs relative mb-10 overflow-hidden"
-                  style={{
-                    height: `${activeSheetDim.height}px`,
-                    boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)'
+          return (
+            <div className="fixed bottom-6 right-6 z-20 flex items-center gap-2.5 bg-gray-900/90 text-white backdrop-blur-md px-3.5 py-2 rounded-full shadow-2xl border border-gray-700 no-print text-xs">
+              {/* View Mode Quick Switcher */}
+              <div className="flex items-center gap-1 pr-2 border-r border-gray-700">
+                <button
+                  id="status-bar-view-single"
+                  type="button"
+                  onClick={() => {
+                    setPageViewMode('single');
+                    setTimeout(recalculatePagination, 50);
                   }}
+                  className={`p-1 rounded-md transition ${
+                    pageViewMode === 'single' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                  title="Single Page View (1 Page)"
                 >
-                  {/* Inscribed Rectangle Border Frame around page margins */}
-                  {hasBorder && (
-                    <div
-                      className="page-frame-boundary absolute pointer-events-none transition-all rounded-xs z-10"
-                      style={{
-                        top: `${borderInset}px`,
-                        left: `${borderInset}px`,
-                        right: `${borderInset}px`,
-                        bottom: `${borderInset}px`,
-                        borderWidth: borderType === 'double' ? `${borderThickness * 2}px` : `${borderThickness}px`,
-                        borderColor: resolvedBorderColor(),
-                        borderStyle: borderType === 'corners' ? 'solid' : borderType === 'royal' ? 'double' : borderType
-                      }}
-                    >
-                      {/* Double Inscribed accent for Royal style */}
-                      {borderType === 'royal' && (
-                        <div
-                          className="absolute pointer-events-none"
-                          style={{
-                            top: '4px',
-                            left: '4px',
-                            right: '4px',
-                            bottom: '4px',
-                            border: `1px solid ${resolvedBorderColor()}`
-                          }}
-                        />
-                      )}
+                  <Square className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  id="status-bar-view-dual"
+                  type="button"
+                  onClick={() => {
+                    setPageViewMode('dual');
+                    setTimeout(recalculatePagination, 50);
+                  }}
+                  className={`p-1 rounded-md transition ${
+                    pageViewMode === 'dual' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                  title="Two-Page Side-by-Side View (2 Pages)"
+                >
+                  <Columns2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
-                      {/* Corner Accents if selected */}
-                      {borderType === 'corners' && (
-                        <>
-                          <div
-                            className="absolute -top-1.5 -left-1.5 w-4 h-4"
-                            style={{
-                              borderTop: `4px solid ${resolvedBorderColor()}`,
-                              borderLeft: `4px solid ${resolvedBorderColor()}`
-                            }}
-                          />
-                          <div
-                            className="absolute -top-1.5 -right-1.5 w-4 h-4"
-                            style={{
-                              borderTop: `4px solid ${resolvedBorderColor()}`,
-                              borderRight: `4px solid ${resolvedBorderColor()}`
-                            }}
-                          />
-                          <div
-                            className="absolute -bottom-1.5 -left-1.5 w-4 h-4"
-                            style={{
-                              borderBottom: `4px solid ${resolvedBorderColor()}`,
-                              borderLeft: `4px solid ${resolvedBorderColor()}`
-                            }}
-                          />
-                          <div
-                            className="absolute -bottom-1.5 -right-1.5 w-4 h-4"
-                            style={{
-                              borderBottom: `4px solid ${resolvedBorderColor()}`,
-                              borderRight: `4px solid ${resolvedBorderColor()}`
-                            }}
-                          />
-                        </>
-                      )}
+              <div className="flex items-center gap-1.5 pr-2.5 border-r border-gray-700 font-medium">
+                <span className="text-gray-400">{pageViewMode === 'dual' ? 'Pages' : 'Page'}</span>
+                <span className="text-blue-400 font-bold">
+                  {pageViewMode === 'dual'
+                    ? `${activePageIndex}-${Math.min(displayedPagesCount, activePageIndex + 1)}`
+                    : activePageIndex}
+                </span>
+                <span className="text-gray-400">of</span>
+                <span className="text-white font-bold">{displayedPagesCount}</span>
+              </div>
 
-                      {/* Page Number positioned INSIDE the rectangle border frame at bottom */}
-                      {showPageNumber && (
-                        <div
-                          className={`absolute left-0 right-0 flex justify-center items-center pointer-events-none select-none ${
-                            pageNumberPosition === 'inside' ? 'bottom-3' : '-bottom-3'
-                          }`}
-                        >
-                          <span
-                            className="text-[11px] font-mono px-3.5 py-0.5 rounded-full font-semibold border shadow-2xs"
-                            style={{
-                              color: resolvedBorderColor(),
-                              borderColor: resolvedBorderColor(),
-                              backgroundColor: '#ffffff'
-                            }}
-                          >
-                            {renderPageNumberString(pageNumber, pagesCount)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Fallback Page Number when border is turned off or in footer */}
-                  {(!hasBorder || pageNumberPosition === 'footer') && showPageNumber && (
-                    <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center pointer-events-none select-none z-10">
-                      <span className="text-[11px] font-mono text-gray-500 bg-white/90 px-3 py-0.5 rounded-full border border-gray-200 shadow-2xs font-semibold">
-                        {renderPageNumberString(pageNumber, pagesCount)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Continuous Overlay Editable Canvas */}
-            <div
-              className="absolute top-0 left-0 w-full z-20"
-              style={{
-                direction: direction,
-                lineHeight: lineHeight,
-                color: textColor
-              }}
-            >
-              <div
-                ref={editorRef}
-                id="editor-content-editable"
-                contentEditable={true}
-                suppressContentEditableWarning={true}
-                onInput={recalculatePagination}
-                onKeyUp={() => {
-                  checkActiveFormats();
-                  recalculatePagination();
-                }}
-                onKeyDown={handleEditorKeyDown}
-                onBeforeInput={handleEditorBeforeInput}
-                onPaste={handleEditorPaste}
-                onCut={() => setTimeout(recalculatePagination, 50)}
-                onMouseUp={checkActiveFormats}
-                onSelect={checkActiveFormats}
-                onPointerUp={checkActiveFormats}
-                placeholder="یہاں لکھنا شروع کیجیے... (Type here in Urdu or English)"
-                className={`document-canvas-editable w-full focus:outline-none ${fontFamily}`}
-                style={{
-                  fontSize: `${baseFontSize}px`,
-                  textAlign: textAlign,
-                  lineHeight: lineHeight,
-                  wordSpacing: wordSpacing,
-                  color: textColor,
-                  minHeight: `${activeSheetDim.height}px`,
-                  paddingTop: `${hasBorder ? Math.max(62, borderInset + 40) : 48}px`,
-                  paddingBottom: `${hasBorder ? Math.max(76, borderInset + 54) : 48}px`,
-                  paddingLeft: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`,
-                  paddingRight: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`
-                }}
-              />
-            </div>
-          </div>
-
-          {/* ==================================================== */}
-          {/* Bottom "Add Page" and "Delete Page" Action Buttons  */}
-          {/* ==================================================== */}
-          <div className="mt-4 mb-24 flex flex-col items-center gap-2 no-print">
-            <div className="flex items-center gap-3">
               <button
-                id="btn-add-new-page-bottom"
+                id="floating-btn-add-page"
                 onClick={handleAddPage}
-                className="group flex items-center gap-2.5 px-6 py-3 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-full border border-white/25 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-98 cursor-pointer font-semibold text-xs sm:text-sm tracking-wide"
+                className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-full font-semibold text-[11px] transition shadow-xs cursor-pointer active:scale-95"
+                title="Add New Page (نیا صفحہ شامل کریں)"
               >
-                <div className="w-6 h-6 rounded-full bg-blue-600 group-hover:bg-blue-500 flex items-center justify-center text-white shadow-xs transition">
-                  <Plus className="w-4 h-4 stroke-[2.5]" />
-                </div>
-                <span>Add Page (نیا صفحہ)</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Page</span>
               </button>
 
               {pagesCount > 1 && (
                 <button
-                  id="btn-delete-page-bottom"
+                  id="floating-btn-delete-page"
                   onClick={() => handleDeletePage()}
-                  className="group flex items-center gap-2.5 px-5 py-3 bg-red-500/20 hover:bg-red-500/30 active:bg-red-500/40 text-red-200 rounded-full border border-red-400/30 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-98 cursor-pointer font-semibold text-xs sm:text-sm tracking-wide"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-red-600/80 hover:bg-red-600 active:bg-red-700 rounded-full font-semibold text-[11px] transition shadow-xs cursor-pointer active:scale-95"
+                  title="Delete Page (صفحہ حذف کریں)"
                 >
-                  <div className="w-6 h-6 rounded-full bg-red-600 group-hover:bg-red-500 flex items-center justify-center text-white shadow-xs transition">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Delete Page (صفحہ حذف کریں)</span>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
                 </button>
               )}
+
+              <div className="flex items-center gap-1 pl-1 border-l border-gray-700">
+                <button
+                  onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}
+                  className="p-1 hover:bg-gray-800 rounded-full transition"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="font-mono px-1 font-semibold min-w-[32px] text-center">{zoomLevel}%</span>
+                <button
+                  onClick={() => setZoomLevel(Math.min(150, zoomLevel + 10))}
+                  className="p-1 hover:bg-gray-800 rounded-full transition"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-            <span className="text-[11px] text-gray-400 font-sans tracking-wide">
-              Manage your document sheets easily
-            </span>
-          </div>
-        </div>
+          );
+        })()}
+
+        {/* Multi-Page Canvas Frame Wrapper */}
+        {(() => {
+          const displayedPagesCount = pageViewMode === 'dual'
+            ? Math.max(2, pagesCount % 2 === 0 ? pagesCount : pagesCount + 1)
+            : pagesCount;
+
+          return (
+            <div
+              className="transition-transform duration-150 origin-top flex flex-col items-center"
+              style={{ transform: `scale(${zoomLevel / 100})` }}
+            >
+              <div
+                ref={documentContainerRef}
+                id="printable-document-container"
+                className={`relative transition-all duration-200 ${
+                  pageViewMode === 'dual'
+                    ? 'grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10 justify-items-center'
+                    : 'flex flex-col items-center'
+                }`}
+                style={{
+                  width: pageViewMode === 'dual'
+                    ? `${activeSheetDim.width * 2 + 32}px`
+                    : `${activeSheetDim.width}px`,
+                  maxWidth: '100%'
+                }}
+              >
+                {/* Visual Multi-Page Background Sheets */}
+                {Array.from({ length: displayedPagesCount }).map((_, index) => {
+                  const pageNumber = index + 1;
+                  return (
+                    <div
+                      key={`page-bg-${pageNumber}`}
+                      id={`page-sheet-${pageNumber}`}
+                      className="msword-page-sheet bg-white rounded-xs relative mb-10 overflow-hidden shrink-0 transition-shadow"
+                      style={{
+                        width: `${activeSheetDim.width}px`,
+                        height: `${activeSheetDim.height}px`,
+                        boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)'
+                      }}
+                    >
+                      {/* Inscribed Rectangle Border Frame around page margins */}
+                      {hasBorder && (
+                        <div
+                          className="page-frame-boundary absolute pointer-events-none transition-all rounded-xs z-10"
+                          style={{
+                            top: `${borderInset}px`,
+                            left: `${borderInset}px`,
+                            right: `${borderInset}px`,
+                            bottom: `${borderInset}px`,
+                            borderWidth: borderType === 'double' ? `${borderThickness * 2}px` : `${borderThickness}px`,
+                            borderColor: resolvedBorderColor(),
+                            borderStyle: borderType === 'corners' ? 'solid' : borderType === 'royal' ? 'double' : borderType
+                          }}
+                        >
+                          {/* Double Inscribed accent for Royal style */}
+                          {borderType === 'royal' && (
+                            <div
+                              className="absolute pointer-events-none"
+                              style={{
+                                top: '4px',
+                                left: '4px',
+                                right: '4px',
+                                bottom: '4px',
+                                border: `1px solid ${resolvedBorderColor()}`
+                              }}
+                            />
+                          )}
+
+                          {/* Corner Accents if selected */}
+                          {borderType === 'corners' && (
+                            <>
+                              <div
+                                className="absolute -top-1.5 -left-1.5 w-4 h-4"
+                                style={{
+                                  borderTop: `4px solid ${resolvedBorderColor()}`,
+                                  borderLeft: `4px solid ${resolvedBorderColor()}`
+                                }}
+                              />
+                              <div
+                                className="absolute -top-1.5 -right-1.5 w-4 h-4"
+                                style={{
+                                  borderTop: `4px solid ${resolvedBorderColor()}`,
+                                  borderRight: `4px solid ${resolvedBorderColor()}`
+                                }}
+                              />
+                              <div
+                                className="absolute -bottom-1.5 -left-1.5 w-4 h-4"
+                                style={{
+                                  borderBottom: `4px solid ${resolvedBorderColor()}`,
+                                  borderLeft: `4px solid ${resolvedBorderColor()}`
+                                }}
+                              />
+                              <div
+                                className="absolute -bottom-1.5 -right-1.5 w-4 h-4"
+                                style={{
+                                  borderBottom: `4px solid ${resolvedBorderColor()}`,
+                                  borderRight: `4px solid ${resolvedBorderColor()}`
+                                }}
+                              />
+                            </>
+                          )}
+
+                          {/* Page Number positioned INSIDE the rectangle border frame at bottom */}
+                          {showPageNumber && (
+                            <div
+                              className={`absolute left-0 right-0 flex justify-center items-center pointer-events-none select-none ${
+                                pageNumberPosition === 'inside' ? 'bottom-3' : '-bottom-3'
+                              }`}
+                            >
+                              <span
+                                className="text-[11px] font-mono px-3.5 py-0.5 rounded-full font-semibold border shadow-2xs"
+                                style={{
+                                  color: resolvedBorderColor(),
+                                  borderColor: resolvedBorderColor(),
+                                  backgroundColor: '#ffffff'
+                                }}
+                              >
+                                {renderPageNumberString(pageNumber, displayedPagesCount)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Fallback Page Number when border is turned off or in footer */}
+                      {(!hasBorder || pageNumberPosition === 'footer') && showPageNumber && (
+                        <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center pointer-events-none select-none z-10">
+                          <span className="text-[11px] font-mono text-gray-500 bg-white/90 px-3 py-0.5 rounded-full border border-gray-200 shadow-2xs font-semibold">
+                            {renderPageNumberString(pageNumber, displayedPagesCount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Continuous Overlay Editable Canvas */}
+                <div
+                  className="absolute top-0 left-0 w-full z-20"
+                  style={{
+                    direction: direction,
+                    lineHeight: lineHeight,
+                    color: textColor
+                  }}
+                >
+                  <div
+                    ref={editorRef}
+                    id="editor-content-editable"
+                    contentEditable={true}
+                    suppressContentEditableWarning={true}
+                    onInput={recalculatePagination}
+                    onKeyUp={() => {
+                      checkActiveFormats();
+                      recalculatePagination();
+                    }}
+                    onKeyDown={handleEditorKeyDown}
+                    onBeforeInput={handleEditorBeforeInput}
+                    onPaste={handleEditorPaste}
+                    onCut={() => setTimeout(recalculatePagination, 50)}
+                    onMouseUp={checkActiveFormats}
+                    onSelect={checkActiveFormats}
+                    onPointerUp={checkActiveFormats}
+                    placeholder="یہاں لکھنا شروع کیجیے... (Type here in Urdu or English)"
+                    className={`document-canvas-editable w-full focus:outline-none ${fontFamily}`}
+                    style={{
+                      fontSize: `${baseFontSize}px`,
+                      textAlign: textAlign,
+                      lineHeight: lineHeight,
+                      wordSpacing: wordSpacing,
+                      color: textColor,
+                      minHeight: `${activeSheetDim.height}px`,
+                      paddingTop: `${hasBorder ? Math.max(62, borderInset + 40) : 48}px`,
+                      paddingBottom: `${hasBorder ? Math.max(76, borderInset + 54) : 48}px`,
+                      paddingLeft: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`,
+                      paddingRight: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`,
+                      ...(pageViewMode === 'dual'
+                        ? {
+                            columnCount: 2,
+                            columnGap: `${32 + (hasBorder ? Math.max(52, borderInset + 32) : 48) * 2}px`,
+                            columnFill: 'auto',
+                            height: `${activeSheetDim.height * Math.ceil(displayedPagesCount / 2) + (Math.ceil(displayedPagesCount / 2) - 1) * 40}px`,
+                            maxHeight: `${activeSheetDim.height * Math.ceil(displayedPagesCount / 2) + (Math.ceil(displayedPagesCount / 2) - 1) * 40}px`
+                          }
+                        : {})
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Bottom "Add Page" and "Delete Page" Action Buttons */}
+              <div className="mt-4 mb-24 flex flex-col items-center gap-2 no-print">
+                <div className="flex items-center gap-3">
+                  <button
+                    id="btn-add-new-page-bottom"
+                    onClick={handleAddPage}
+                    className="group flex items-center gap-2.5 px-6 py-3 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-full border border-white/25 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-98 cursor-pointer font-semibold text-xs sm:text-sm tracking-wide"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-blue-600 group-hover:bg-blue-500 flex items-center justify-center text-white shadow-xs transition">
+                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                    <span>Add Page (نیا صفحہ)</span>
+                  </button>
+
+                  {pagesCount > 1 && (
+                    <button
+                      id="btn-delete-page-bottom"
+                      onClick={() => handleDeletePage()}
+                      className="group flex items-center gap-2.5 px-5 py-3 bg-red-500/20 hover:bg-red-500/30 active:bg-red-500/40 text-red-200 rounded-full border border-red-400/30 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-98 cursor-pointer font-semibold text-xs sm:text-sm tracking-wide"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-red-600 group-hover:bg-red-500 flex items-center justify-center text-white shadow-xs transition">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span>Delete Page (صفحہ حذف کریں)</span>
+                    </button>
+                  )}
+                </div>
+                <span className="text-[11px] text-gray-400 font-sans tracking-wide">
+                  Manage your document sheets easily
+                </span>
+              </div>
+            </div>
+          );
+        })()}
       </main>
 
       {/* ==================================================== */}

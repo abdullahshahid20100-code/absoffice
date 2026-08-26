@@ -36,6 +36,8 @@ export interface SavedDocument {
   textAlign: 'left' | 'center' | 'right' | 'justify';
   direction: 'rtl' | 'ltr';
   pageSize: string;
+  viewMode?: 'single' | 'dual';
+  deviceId?: string;
   updatedAt: number;
   wordCount: number;
   charCount: number;
