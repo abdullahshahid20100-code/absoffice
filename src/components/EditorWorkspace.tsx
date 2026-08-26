@@ -198,8 +198,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       });
       const currentHeight = contentEl.scrollHeight;
       const pageBreaks = contentEl.querySelectorAll('[data-page-break="true"]').length;
-      const calculatedPages = Math.max(2, Math.max(1 + pageBreaks, Math.ceil((currentHeight - 20) / sheetHeight) * 2));
-      setPagesCount(calculatedPages);
+      const calculatedPages = Math.max(2, Math.max((1 + pageBreaks) * 2, Math.ceil((currentHeight - 20) / sheetHeight) * 2));
+      setPagesCount(calculatedPages % 2 === 0 ? calculatedPages : calculatedPages + 1);
     } else {
       // Clear any previous invalid inline margin styles if content is within page
       children.forEach((child) => {
@@ -726,6 +726,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       setDirection('ltr');
       setTextAlign('left');
       setLineHeight('1.6');
+      setPageNumberFormat('english');
       if (
         fontFamily.includes('nastaliq') ||
         fontFamily.includes('gulzar') ||
@@ -738,17 +739,18 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       onShowToast({
         type: 'info',
         title: 'English Mode Activated / انگریزی موڈ',
-        description: 'Left-to-Right layout with standard English typography enabled.'
+        description: 'Left-to-Right layout: Page 1 on left, standard English numbering enabled.'
       });
     } else {
       setDirection('rtl');
       setTextAlign('right');
       setLineHeight('2.2');
+      setPageNumberFormat('urdu');
       setFontFamily('font-nastaliq');
       onShowToast({
         type: 'info',
         title: 'Urdu Mode Activated / اردو موڈ',
-        description: 'Right-to-Left layout with classic Nastaliq calligraphy enabled.'
+        description: 'Right-to-Left layout: Page 1 on right, Urdu Nastaliq & numbering enabled.'
       });
     }
     setTimeout(recalculatePagination, 50);
@@ -859,35 +861,80 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     const pagePitch = sheetHeight + sheetGap;
     const safeTop = hasBorder ? Math.max(62, borderInset + 40) : 48; // 1-2 lines below frame
 
-    // Current total height of content in editor
+    if (pageViewMode === 'dual') {
+      // In dual 2-page view mode: add 2 new pages (a new spread pair below)
+      const currentHeight = contentEl.scrollHeight;
+      const pageBreaks = contentEl.querySelectorAll('[data-page-break="true"]').length;
+      
+      const pageBreakWrapper = document.createElement('div');
+      pageBreakWrapper.className = 'document-page-break-section';
+      pageBreakWrapper.setAttribute('data-page-break', 'true');
+      pageBreakWrapper.setAttribute('data-spread-break', 'true');
+
+      const spacerEl = document.createElement('div');
+      spacerEl.className = 'page-gap-spacer';
+      spacerEl.style.cssText = `height: ${sheetGap + 40}px; pointer-events: none; user-select: none; break-before: page; page-break-before: always;`;
+      pageBreakWrapper.appendChild(spacerEl);
+
+      const newParagraph = document.createElement('p');
+      newParagraph.innerHTML = '<br>';
+
+      contentEl.appendChild(pageBreakWrapper);
+      contentEl.appendChild(newParagraph);
+
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.setStart(newParagraph, 0);
+      range.collapse(true);
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      setPagesCount((prev) => {
+        const next = (prev % 2 === 0 ? prev : prev + 1) + 2;
+        return Math.max(4, next);
+      });
+
+      onShowToast({
+        type: 'success',
+        title: 'Two Pages Added (2 نئے صفحات شامل کیے گئے)',
+        description: `New two-page spread (Pages ${pagesCount + 1} & ${pagesCount + 2}) added below.`
+      });
+
+      setTimeout(() => {
+        recalculatePagination();
+        if (workspaceScrollRef.current) {
+          workspaceScrollRef.current.scrollTo({
+            top: workspaceScrollRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+      return;
+    }
+
+    // Single page mode
     const currentHeight = contentEl.scrollHeight;
-    
-    // Determine which page sheet the current content ends on
     const currentPageIndex = Math.floor(Math.max(0, currentHeight - safeTop) / pagePitch);
-    
-    // Exact Y-position where text should start on the next sheet below (1-2 lines below top frame)
     const targetY = (currentPageIndex + 1) * pagePitch + safeTop;
     const spacerHeight = Math.max(40, targetY - currentHeight);
 
-    // Create wrapper for the page break
     const pageBreakWrapper = document.createElement('div');
     pageBreakWrapper.className = 'document-page-break-section';
     pageBreakWrapper.setAttribute('data-page-break', 'true');
     
-    // Transparent spacer that jumps to the top margin of the next sheet
     const spacerEl = document.createElement('div');
     spacerEl.className = 'page-gap-spacer';
     spacerEl.style.cssText = `height: ${spacerHeight}px; pointer-events: none; user-select: none;`;
     pageBreakWrapper.appendChild(spacerEl);
 
-    // New paragraph on the next sheet
     const newParagraph = document.createElement('p');
     newParagraph.innerHTML = '<br>';
 
-    editorRef.current.appendChild(pageBreakWrapper);
-    editorRef.current.appendChild(newParagraph);
+    contentEl.appendChild(pageBreakWrapper);
+    contentEl.appendChild(newParagraph);
 
-    // Place cursor cleanly at the start of the next page
     const range = document.createRange();
     const sel = window.getSelection();
     range.setStart(newParagraph, 0);
@@ -897,15 +944,16 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       sel.addRange(range);
     }
 
-    recalculatePagination();
+    setPagesCount((prev) => prev + 1);
 
     onShowToast({
       type: 'success',
       title: 'New Page Added (نیا صفحہ شامل کیا گیا)',
-      description: `Page ${currentPageIndex + 2} is ready below.`
+      description: `Page ${pagesCount + 1} is ready below.`
     });
 
     setTimeout(() => {
+      recalculatePagination();
       if (workspaceScrollRef.current) {
         workspaceScrollRef.current.scrollTo({
           top: (targetY - 60) * (zoomLevel / 100),
@@ -921,6 +969,35 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     const contentEl = editorRef.current;
     const pageBreaks = Array.from(contentEl.querySelectorAll('[data-page-break="true"]'));
 
+    if (pageViewMode === 'dual') {
+      if (pagesCount <= 2 && pageBreaks.length === 0) {
+        onShowToast({
+          type: 'info',
+          title: 'Cannot Delete Spread',
+          description: 'Document must contain at least 2 pages in dual view.'
+        });
+        return;
+      }
+
+      if (pageBreaks.length > 0) {
+        const lastBreak = pageBreaks[pageBreaks.length - 1] as HTMLElement;
+        const nextElem = lastBreak.nextElementSibling as HTMLElement | null;
+        if (nextElem && (nextElem.tagName === 'P' || nextElem.tagName === 'DIV') && (nextElem.innerHTML === '<br>' || nextElem.innerText.trim() === '')) {
+          nextElem.remove();
+        }
+        lastBreak.remove();
+      }
+
+      setPagesCount((prev) => Math.max(2, prev - 2));
+      onShowToast({
+        type: 'success',
+        title: 'Pages Removed (صفحات حذف کر دیے گئے)',
+        description: 'Two-page spread removed.'
+      });
+      setTimeout(recalculatePagination, 50);
+      return;
+    }
+
     if (pageBreaks.length === 0 && pagesCount <= 1) {
       onShowToast({
         type: 'info',
@@ -931,13 +1008,11 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     }
 
     if (pageBreaks.length > 0) {
-      // Remove specific page break or the last page break
       const breakToRemove = (pageIndexToRemove !== undefined && pageIndexToRemove > 0 && pageBreaks[pageIndexToRemove - 1])
         ? (pageBreaks[pageIndexToRemove - 1] as HTMLElement)
         : (pageBreaks[pageBreaks.length - 1] as HTMLElement);
 
       if (breakToRemove && breakToRemove.parentNode) {
-        // Also remove any empty trailing paragraph immediately after it
         const nextElem = breakToRemove.nextElementSibling as HTMLElement | null;
         if (nextElem && (nextElem.tagName === 'P' || nextElem.tagName === 'DIV') && (nextElem.innerHTML === '<br>' || nextElem.innerText.trim() === '')) {
           nextElem.parentNode?.removeChild(nextElem);
@@ -945,7 +1020,6 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         breakToRemove.parentNode.removeChild(breakToRemove);
       }
     } else {
-      // If multi-page without explicit manual breaks, trim empty lines or trailing elements
       const children = Array.from(contentEl.children);
       for (let i = children.length - 1; i >= 0; i--) {
         const el = children[i] as HTMLElement;
@@ -957,6 +1031,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       }
     }
 
+    setPagesCount((prev) => Math.max(1, prev - 1));
     recalculatePagination();
 
     onShowToast({
@@ -1292,7 +1367,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
   // Format page number label
   const renderPageNumberString = (pageNumber: number, total: number) => {
-    if (pageNumberFormat === 'urdu') {
+    const isUrdu = pageNumberFormat === 'urdu' || (direction === 'rtl' && pageNumberFormat !== 'english' && pageNumberFormat !== 'simple');
+    if (isUrdu) {
       const urduNums = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
       const toUrdu = (n: number) => n.toString().split('').map(d => urduNums[parseInt(d)] || d).join('');
       return `صفحہ ${toUrdu(pageNumber)} از ${toUrdu(total)}`;
@@ -2207,10 +2283,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                 id="floating-btn-add-page"
                 onClick={handleAddPage}
                 className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-full font-semibold text-[11px] transition shadow-xs cursor-pointer active:scale-95"
-                title="Add New Page (نیا صفحہ شامل کریں)"
+                title={pageViewMode === 'dual' ? 'Add 2 Pages Spread (2 نئے صفحات شامل کریں)' : 'Add New Page (نیا صفحہ شامل کریں)'}
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Page</span>
+                <span>{pageViewMode === 'dual' ? '+ 2 Pages' : 'Add Page'}</span>
               </button>
 
               {pagesCount > 1 && (
@@ -2218,10 +2294,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                   id="floating-btn-delete-page"
                   onClick={() => handleDeletePage()}
                   className="flex items-center gap-1 px-2.5 py-1 bg-red-600/80 hover:bg-red-600 active:bg-red-700 rounded-full font-semibold text-[11px] transition shadow-xs cursor-pointer active:scale-95"
-                  title="Delete Page (صفحہ حذف کریں)"
+                  title={pageViewMode === 'dual' ? 'Delete 2 Pages Spread (صفحات حذف کریں)' : 'Delete Page (صفحہ حذف کریں)'}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
+                  <span>{pageViewMode === 'dual' ? 'Delete 2' : 'Delete'}</span>
                 </button>
               )}
 
@@ -2260,12 +2336,14 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               <div
                 ref={documentContainerRef}
                 id="printable-document-container"
+                dir={direction}
                 className={`relative transition-all duration-200 ${
                   pageViewMode === 'dual'
                     ? 'grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10 justify-items-center'
                     : 'flex flex-col items-center'
                 }`}
                 style={{
+                  direction: direction,
                   width: pageViewMode === 'dual'
                     ? `${activeSheetDim.width * 2 + 32}px`
                     : `${activeSheetDim.width}px`,
@@ -2279,8 +2357,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                     <div
                       key={`page-bg-${pageNumber}`}
                       id={`page-sheet-${pageNumber}`}
+                      dir={direction}
                       className="msword-page-sheet bg-white rounded-xs relative mb-10 overflow-hidden shrink-0 transition-shadow"
                       style={{
+                        direction: direction,
                         width: `${activeSheetDim.width}px`,
                         height: `${activeSheetDim.height}px`,
                         boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)'
@@ -2446,10 +2526,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                     <div className="w-6 h-6 rounded-full bg-blue-600 group-hover:bg-blue-500 flex items-center justify-center text-white shadow-xs transition">
                       <Plus className="w-4 h-4 stroke-[2.5]" />
                     </div>
-                    <span>Add Page (نیا صفحہ)</span>
+                    <span>{pageViewMode === 'dual' ? 'Add 2 Pages (2 نئے صفحات)' : 'Add Page (نیا صفحہ)'}</span>
                   </button>
 
-                  {pagesCount > 1 && (
+                  {pagesCount > (pageViewMode === 'dual' ? 2 : 1) && (
                     <button
                       id="btn-delete-page-bottom"
                       onClick={() => handleDeletePage()}
@@ -2458,12 +2538,12 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                       <div className="w-6 h-6 rounded-full bg-red-600 group-hover:bg-red-500 flex items-center justify-center text-white shadow-xs transition">
                         <Trash2 className="w-3.5 h-3.5" />
                       </div>
-                      <span>Delete Page (صفحہ حذف کریں)</span>
+                      <span>{pageViewMode === 'dual' ? 'Delete 2 Pages (صفحات حذف کریں)' : 'Delete Page (صفحہ حذف کریں)'}</span>
                     </button>
                   )}
                 </div>
                 <span className="text-[11px] text-gray-400 font-sans tracking-wide">
-                  Manage your document sheets easily
+                  {pageViewMode === 'dual' ? 'Dual Page Spread Mode (دو صفحات کا منظر)' : 'Single Page View Mode (ایک صفحہ کا منظر)'}
                 </span>
               </div>
             </div>
