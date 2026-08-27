@@ -116,7 +116,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   // Page numbering inside rectangle options
   const [showPageNumber, setShowPageNumber] = useState(true);
   const [pageNumberPosition, setPageNumberPosition] = useState<'inside' | 'footer'>('inside');
-  const [pageNumberFormat, setPageNumberFormat] = useState<'urdu' | 'english' | 'simple'>('urdu');
+  const [pageNumberFormat, setPageNumberFormat] = useState<'urdu' | 'english' | 'simple' | 'plain' | 'plain_urdu'>('urdu');
 
   // Text Color & Background
   const [textColor, setTextColor] = useState('#1e293b');
@@ -183,36 +183,169 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     const pagePitch = sheetHeight + sheetGap;
     const safeTop = hasBorder ? Math.max(62, borderInset + 40) : 48;
     const safeBottom = hasBorder ? Math.max(76, borderInset + 54) : 48;
+    const safeSide = hasBorder ? Math.max(52, borderInset + 32) : 48;
+    const colGap = 32 + safeSide * 2;
+    const isRTL = direction === 'rtl';
 
-    // Direct text container inner children (top-level elements)
-    const children = Array.from(contentEl.children) as HTMLElement[];
-    
     if (pageViewMode === 'dual') {
-      // In dual 2-page view, clear vertical jump margins so text flows seamlessly through CSS 2-column spread
-      children.forEach((child) => {
-        if (child.getAttribute('data-page-break') !== 'true' && !child.classList.contains('document-page-break-section')) {
-          if (child.style.marginTop) {
-            child.style.marginTop = '';
-          }
+      // 1. Ensure content elements are properly housed in .dual-spread-row containers
+      let spreads = Array.from(contentEl.querySelectorAll('.dual-spread-row')) as HTMLElement[];
+
+      if (spreads.length === 0) {
+        const rawChildren = Array.from(contentEl.children) as HTMLElement[];
+        const firstSpread = document.createElement('div');
+        firstSpread.className = 'dual-spread-row';
+        firstSpread.setAttribute('data-spread', '1');
+        firstSpread.style.cssText = `display: block; width: 100%; height: ${sheetHeight}px; min-height: ${sheetHeight}px; max-height: ${sheetHeight}px; margin-bottom: 40px; column-count: 2; column-gap: ${colGap}px; column-fill: auto; box-sizing: border-box; padding: ${safeTop}px ${safeSide}px ${safeBottom}px ${safeSide}px; outline: none;`;
+
+        if (rawChildren.length > 0) {
+          rawChildren.forEach((child) => firstSpread.appendChild(child));
+        } else {
+          const p = document.createElement('p');
+          p.innerHTML = '<br>';
+          firstSpread.appendChild(p);
         }
+        contentEl.appendChild(firstSpread);
+        spreads = [firstSpread];
+      } else {
+        // Sync styling on all existing spreads
+        spreads.forEach((spread, idx) => {
+          spread.style.height = `${sheetHeight}px`;
+          spread.style.minHeight = `${sheetHeight}px`;
+          spread.style.maxHeight = `${sheetHeight}px`;
+          spread.style.marginBottom = '40px';
+          spread.style.columnCount = '2';
+          spread.style.columnGap = `${colGap}px`;
+          spread.style.columnFill = 'auto';
+          spread.style.paddingTop = `${safeTop}px`;
+          spread.style.paddingBottom = `${safeBottom}px`;
+          spread.style.paddingLeft = `${safeSide}px`;
+          spread.style.paddingRight = `${safeSide}px`;
+          spread.setAttribute('data-spread', `${idx + 1}`);
+        });
+      }
+
+      // Clear any single-page vertical marginTop overrides inside spreads
+      spreads.forEach((spread) => {
+        Array.from(spread.children).forEach((c) => {
+          const el = c as HTMLElement;
+          if (el.getAttribute('data-page-break') !== 'true' && !el.classList.contains('document-page-break-section')) {
+            if (el.style.marginTop) el.style.marginTop = '';
+          }
+        });
       });
-      const currentHeight = contentEl.scrollHeight;
-      const pageBreaks = contentEl.querySelectorAll('[data-page-break="true"]').length;
-      const calculatedPages = Math.max(2, Math.max((1 + pageBreaks) * 2, Math.ceil((currentHeight - 20) / sheetHeight) * 2));
-      setPagesCount(calculatedPages % 2 === 0 ? calculatedPages : calculatedPages + 1);
+
+      // Preserve selection if possible
+      const sel = window.getSelection();
+      let activeNode: Node | null = null;
+      let activeOffset = 0;
+      if (sel && sel.rangeCount > 0) {
+        const r = sel.getRangeAt(0);
+        activeNode = r.startContainer;
+        activeOffset = r.startOffset;
+      }
+
+      let modified = false;
+      // Multi-pass overflow redistribution across spreads
+      for (let sIdx = 0; sIdx < spreads.length; sIdx++) {
+        const currentSpread = spreads[sIdx];
+        const spreadRect = currentSpread.getBoundingClientRect();
+        const children = Array.from(currentSpread.children) as HTMLElement[];
+        const overflowing: HTMLElement[] = [];
+
+        children.forEach((child) => {
+          if (child.getAttribute('data-page-break') === 'true') {
+            overflowing.push(child);
+            return;
+          }
+          const childRect = child.getBoundingClientRect();
+          if (childRect.width === 0 && childRect.height === 0) return;
+
+          // In RTL, column 3 (overflow) is pushed to the left of the spread left edge
+          // In LTR, column 3 (overflow) is pushed to the right of the spread right edge
+          const isOverflow = isRTL
+            ? (childRect.left < spreadRect.left - 4)
+            : (childRect.right > spreadRect.right + 4);
+
+          if (isOverflow || overflowing.length > 0) {
+            overflowing.push(child);
+          }
+        });
+
+        if (overflowing.length > 0) {
+          modified = true;
+          let nextSpread = spreads[sIdx + 1];
+          if (!nextSpread) {
+            nextSpread = document.createElement('div');
+            nextSpread.className = 'dual-spread-row';
+            nextSpread.setAttribute('data-spread', `${sIdx + 2}`);
+            nextSpread.style.cssText = `display: block; width: 100%; height: ${sheetHeight}px; min-height: ${sheetHeight}px; max-height: ${sheetHeight}px; margin-bottom: 40px; column-count: 2; column-gap: ${colGap}px; column-fill: auto; box-sizing: border-box; padding: ${safeTop}px ${safeSide}px ${safeBottom}px ${safeSide}px; outline: none;`;
+            contentEl.appendChild(nextSpread);
+            spreads.push(nextSpread);
+          }
+
+          const firstChild = nextSpread.firstChild;
+          overflowing.forEach((child) => {
+            if (firstChild) {
+              nextSpread.insertBefore(child, firstChild);
+            } else {
+              nextSpread.appendChild(child);
+            }
+          });
+        }
+      }
+
+      // Restore cursor if modified
+      if (modified && activeNode && sel) {
+        try {
+          const newRange = document.createRange();
+          newRange.setStart(activeNode, activeOffset);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        } catch (e) {
+          // safe fallback
+        }
+      }
+
+      // Clean trailing empty spreads (keep at least 1 spread = 2 pages)
+      for (let i = spreads.length - 1; i >= 1; i--) {
+        const s = spreads[i];
+        const text = s.innerText.trim();
+        const hasImages = s.querySelectorAll('img').length > 0;
+        if (!text && !hasImages) {
+          s.remove();
+          spreads.splice(i, 1);
+        } else {
+          break;
+        }
+      }
+
+      setPagesCount(Math.max(2, spreads.length * 2));
     } else {
-      // Clear any previous invalid inline margin styles if content is within page
-      children.forEach((child) => {
+      // Single page mode: unwrap any .dual-spread-row into plain direct children of contentEl
+      const spreads = Array.from(contentEl.querySelectorAll('.dual-spread-row')) as HTMLElement[];
+      if (spreads.length > 0) {
+        spreads.forEach((spread) => {
+          while (spread.firstChild) {
+            contentEl.insertBefore(spread.firstChild, spread);
+          }
+          spread.remove();
+        });
+      }
+
+      const directChildren = Array.from(contentEl.children) as HTMLElement[];
+      directChildren.forEach((child) => {
         if (child.getAttribute('data-page-break') === 'true' || child.classList.contains('document-page-break-section')) {
           return;
         }
-        
+
         // Calculate child position without its extra margin
         const currentMargin = parseInt(child.style.marginTop || '0', 10) || 0;
         const baseTop = child.offsetTop - currentMargin;
         const childHeight = child.offsetHeight;
         const baseBottom = baseTop + childHeight;
-        
+
         const pageIndex = Math.floor(baseTop / pagePitch);
         const sheetLimit = pageIndex * pagePitch + sheetHeight - safeBottom;
         const nextSheetTop = (pageIndex + 1) * pagePitch + safeTop;
@@ -860,27 +993,22 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     const sheetGap = 40; // matches mb-10 (40px)
     const pagePitch = sheetHeight + sheetGap;
     const safeTop = hasBorder ? Math.max(62, borderInset + 40) : 48; // 1-2 lines below frame
+    const safeBottom = hasBorder ? Math.max(76, borderInset + 54) : 48;
+    const safeSide = hasBorder ? Math.max(52, borderInset + 32) : 48;
+    const colGap = 32 + safeSide * 2;
 
     if (pageViewMode === 'dual') {
-      // In dual 2-page view mode: add 2 new pages (a new spread pair below)
-      const currentHeight = contentEl.scrollHeight;
-      const pageBreaks = contentEl.querySelectorAll('[data-page-break="true"]').length;
-      
-      const pageBreakWrapper = document.createElement('div');
-      pageBreakWrapper.className = 'document-page-break-section';
-      pageBreakWrapper.setAttribute('data-page-break', 'true');
-      pageBreakWrapper.setAttribute('data-spread-break', 'true');
-
-      const spacerEl = document.createElement('div');
-      spacerEl.className = 'page-gap-spacer';
-      spacerEl.style.cssText = `height: ${sheetGap + 40}px; pointer-events: none; user-select: none; break-before: page; page-break-before: always;`;
-      pageBreakWrapper.appendChild(spacerEl);
+      // In dual 2-page view mode: add a new spread (2 new pages)
+      const spreads = Array.from(contentEl.querySelectorAll('.dual-spread-row')) as HTMLElement[];
+      const newSpread = document.createElement('div');
+      newSpread.className = 'dual-spread-row';
+      newSpread.setAttribute('data-spread', `${spreads.length + 1}`);
+      newSpread.style.cssText = `display: block; width: 100%; height: ${sheetHeight}px; min-height: ${sheetHeight}px; max-height: ${sheetHeight}px; margin-bottom: 40px; column-count: 2; column-gap: ${colGap}px; column-fill: auto; box-sizing: border-box; padding: ${safeTop}px ${safeSide}px ${safeBottom}px ${safeSide}px; outline: none;`;
 
       const newParagraph = document.createElement('p');
       newParagraph.innerHTML = '<br>';
-
-      contentEl.appendChild(pageBreakWrapper);
-      contentEl.appendChild(newParagraph);
+      newSpread.appendChild(newParagraph);
+      contentEl.appendChild(newSpread);
 
       const range = document.createRange();
       const sel = window.getSelection();
@@ -891,10 +1019,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         sel.addRange(range);
       }
 
-      setPagesCount((prev) => {
-        const next = (prev % 2 === 0 ? prev : prev + 1) + 2;
-        return Math.max(4, next);
-      });
+      setPagesCount((spreads.length + 1) * 2);
 
       onShowToast({
         type: 'success',
@@ -967,10 +1092,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const handleDeletePage = (pageIndexToRemove?: number) => {
     if (!editorRef.current) return;
     const contentEl = editorRef.current;
-    const pageBreaks = Array.from(contentEl.querySelectorAll('[data-page-break="true"]'));
 
     if (pageViewMode === 'dual') {
-      if (pagesCount <= 2 && pageBreaks.length === 0) {
+      const spreads = Array.from(contentEl.querySelectorAll('.dual-spread-row')) as HTMLElement[];
+      if (spreads.length <= 1) {
         onShowToast({
           type: 'info',
           title: 'Cannot Delete Spread',
@@ -979,16 +1104,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         return;
       }
 
-      if (pageBreaks.length > 0) {
-        const lastBreak = pageBreaks[pageBreaks.length - 1] as HTMLElement;
-        const nextElem = lastBreak.nextElementSibling as HTMLElement | null;
-        if (nextElem && (nextElem.tagName === 'P' || nextElem.tagName === 'DIV') && (nextElem.innerHTML === '<br>' || nextElem.innerText.trim() === '')) {
-          nextElem.remove();
-        }
-        lastBreak.remove();
-      }
+      const lastSpread = spreads[spreads.length - 1];
+      lastSpread.remove();
+      setPagesCount(Math.max(2, (spreads.length - 1) * 2));
 
-      setPagesCount((prev) => Math.max(2, prev - 2));
       onShowToast({
         type: 'success',
         title: 'Pages Removed (صفحات حذف کر دیے گئے)',
@@ -997,6 +1116,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       setTimeout(recalculatePagination, 50);
       return;
     }
+
+    const pageBreaks = Array.from(contentEl.querySelectorAll('[data-page-break="true"]'));
 
     if (pageBreaks.length === 0 && pagesCount <= 1) {
       onShowToast({
@@ -1367,16 +1488,22 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
   // Format page number label
   const renderPageNumberString = (pageNumber: number, total: number) => {
-    const isUrdu = pageNumberFormat === 'urdu' || (direction === 'rtl' && pageNumberFormat !== 'english' && pageNumberFormat !== 'simple');
-    if (isUrdu) {
-      const urduNums = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-      const toUrdu = (n: number) => n.toString().split('').map(d => urduNums[parseInt(d)] || d).join('');
-      return `صفحہ ${toUrdu(pageNumber)} از ${toUrdu(total)}`;
+    const urduNums = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    const toUrdu = (n: number) => n.toString().split('').map(d => urduNums[parseInt(d)] || d).join('');
+
+    if (pageNumberFormat === 'plain') {
+      return `${pageNumber}`;
+    }
+    if (pageNumberFormat === 'plain_urdu') {
+      return toUrdu(pageNumber);
     }
     if (pageNumberFormat === 'simple') {
       return `${pageNumber} / ${total}`;
     }
-    return `Page ${pageNumber} of ${total}`;
+    if (pageNumberFormat === 'english') {
+      return `Page ${pageNumber} of ${total}`;
+    }
+    return `صفحہ ${toUrdu(pageNumber)} از ${toUrdu(total)}`;
   };
 
   // Quick Page Size Change handler
@@ -2497,19 +2624,16 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                       wordSpacing: wordSpacing,
                       color: textColor,
                       minHeight: `${activeSheetDim.height}px`,
-                      paddingTop: `${hasBorder ? Math.max(62, borderInset + 40) : 48}px`,
-                      paddingBottom: `${hasBorder ? Math.max(76, borderInset + 54) : 48}px`,
-                      paddingLeft: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`,
-                      paddingRight: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`,
                       ...(pageViewMode === 'dual'
                         ? {
-                            columnCount: 2,
-                            columnGap: `${32 + (hasBorder ? Math.max(52, borderInset + 32) : 48) * 2}px`,
-                            columnFill: 'auto',
-                            height: `${activeSheetDim.height * Math.ceil(displayedPagesCount / 2) + (Math.ceil(displayedPagesCount / 2) - 1) * 40}px`,
-                            maxHeight: `${activeSheetDim.height * Math.ceil(displayedPagesCount / 2) + (Math.ceil(displayedPagesCount / 2) - 1) * 40}px`
+                            padding: '0px'
                           }
-                        : {})
+                        : {
+                            paddingTop: `${hasBorder ? Math.max(62, borderInset + 40) : 48}px`,
+                            paddingBottom: `${hasBorder ? Math.max(76, borderInset + 54) : 48}px`,
+                            paddingLeft: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`,
+                            paddingRight: `${hasBorder ? Math.max(52, borderInset + 32) : 48}px`
+                          })
                     }}
                   />
                 </div>
@@ -2779,18 +2903,24 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        {(['urdu', 'english', 'simple'] as const).map((fmt) => (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                        {[
+                          { id: 'urdu', label: 'صفحہ ۱ از ۲' },
+                          { id: 'english', label: 'Page 1 of 2' },
+                          { id: 'simple', label: '1 / 2' },
+                          { id: 'plain', label: 'صرف نمبر (1)' },
+                          { id: 'plain_urdu', label: 'صرف نمبر (۱)' }
+                        ].map((item) => (
                           <button
-                            key={fmt}
-                            onClick={() => setPageNumberFormat(fmt)}
-                            className={`flex-1 py-1.5 rounded-lg text-xs capitalize border ${
-                              pageNumberFormat === fmt
-                                ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold'
-                                : 'bg-gray-50 border-gray-200 text-gray-600'
+                            key={item.id}
+                            onClick={() => setPageNumberFormat(item.id as any)}
+                            className={`py-1.5 px-2 rounded-lg text-xs border transition ${
+                              pageNumberFormat === item.id
+                                ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold ring-1 ring-blue-400'
+                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                             }`}
                           >
-                            {fmt === 'urdu' ? 'اردو (صفحہ ۱)' : fmt === 'english' ? 'English (Page 1)' : 'Simple (1 / 1)'}
+                            {item.label}
                           </button>
                         ))}
                       </div>
