@@ -38,7 +38,8 @@ import {
   Sparkles,
   Layers,
   HelpCircle,
-  Wand2
+  Wand2,
+  BookOpen
 } from 'lucide-react';
 import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
@@ -83,7 +84,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [fontFamily, setFontFamily] = useState(initialDocument.fontFamily || 'font-nastaliq');
   const [baseFontSize, setBaseFontSize] = useState<number>(initialDocument.fontSize || 18);
   const [fontSize, setFontSize] = useState<number>(initialDocument.fontSize || 18);
-  const [lineHeight, setLineHeight] = useState(initialDocument.lineHeight || '2.2');
+  const [lineHeight, setLineHeight] = useState(initialDocument.lineHeight || '1.8');
   const [wordSpacing, setWordSpacing] = useState(initialDocument.wordSpacing || 'normal');
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>(
     initialDocument.textAlign || 'right'
@@ -109,7 +110,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [hasBorder, setHasBorder] = useState(initialDocument.templateId === 'formal-letter' || false);
   const [borderType, setBorderType] = useState<'solid' | 'double' | 'dashed' | 'dotted' | 'corners' | 'royal'>('solid');
   const [borderColorTone, setBorderColorTone] = useState<'dark' | 'light' | 'primary' | 'gold' | 'emerald' | 'crimson' | 'custom'>('dark');
-  const [customBorderColor, setCustomBorderColor] = useState('#1e293b');
+  const [customBorderColor, setCustomBorderColor] = useState('#111111');
   const [borderThickness, setBorderThickness] = useState<number>(2);
   const [borderInset, setBorderInset] = useState<number>(24); // px margin from page edge
 
@@ -119,7 +120,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [pageNumberFormat, setPageNumberFormat] = useState<'urdu' | 'english' | 'simple' | 'plain' | 'plain_urdu'>('urdu');
 
   // Text Color & Background
-  const [textColor, setTextColor] = useState('#1e293b');
+  const [textColor, setTextColor] = useState('#111111');
   const [zoomLevel, setZoomLevel] = useState(100);
 
   // View Mode: Single Page vs Two-Page (Side-by-Side)
@@ -1247,10 +1248,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   // ==========================================
   // DIRECT PDF EXPORT (High-Res Multi-Page jsPDF)
   // ==========================================
-  const handleDirectPDFDownload = async () => {
+  const handleDirectPDFDownload = async (exportMode: 'pages' | 'spreads' = 'pages') => {
     if (!documentContainerRef.current) return;
     setIsExporting(true);
-    setExportProgressText('Preparing high-res PDF...');
+    setExportProgressText(exportMode === 'spreads' ? 'Rendering 2-page spread PDF...' : 'Preparing high-res PDF (معیاری صفحات)...');
     setIsDownloadMenuOpen(false);
     
     // Clear selection outline
@@ -1258,25 +1259,43 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       selectedImage.style.outline = 'none';
       setSelectedImage(null);
     }
+    if (window.getSelection) {
+      window.getSelection()?.removeAllRanges();
+    }
 
     onShowToast({
       type: 'info',
       title: 'Generating PDF...',
-      description: 'Rendering high-resolution document pages.'
+      description: exportMode === 'spreads'
+        ? 'Rendering 2-page spreads in landscape format.'
+        : 'Rendering high-resolution document pages (الگ الگ صفحات).'
     });
 
-    const containerEl = documentContainerRef.current;
-    const pageSheets = Array.from(containerEl.querySelectorAll('.msword-page-sheet')) as HTMLElement[];
-    const origStyles = pageSheets.map(sheet => ({
-      shadow: sheet.style.boxShadow,
-      margin: sheet.style.marginBottom
-    }));
+    const previousViewMode = pageViewMode;
+    const previousZoom = zoomLevel;
 
     try {
-      // Temporarily strip shadows & inter-page gaps for a 100% clean, seamless snapshot
+      // If downloading standard separate pages and currently in dual view,
+      // temporarily switch to single-page flow for 100% clean, sequential page rendering
+      if (exportMode === 'pages' && pageViewMode === 'dual') {
+        setPageViewMode('single');
+      }
+      if (zoomLevel !== 100) {
+        setZoomLevel(100);
+      }
+
+      // Wait for layout and pagination to settle
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      const containerEl = documentContainerRef.current;
+      if (!containerEl) throw new Error('Document container is unavailable');
+
+      const pageSheets = Array.from(containerEl.querySelectorAll('.msword-page-sheet')) as HTMLElement[];
+      const origBoxShadows = pageSheets.map(sheet => sheet.style.boxShadow);
+
+      // Temporarily strip shadows for clean vector-like borders without shifting layout margins
       pageSheets.forEach(sheet => {
         sheet.style.boxShadow = 'none';
-        sheet.style.marginBottom = '0px';
       });
 
       const exportFilter = (node: HTMLElement) => {
@@ -1299,52 +1318,114 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         filter: exportFilter as any
       });
 
-      const pdf = new jsPDF({
-        orientation: activeSheetDim.width > activeSheetDim.height ? 'landscape' : 'portrait',
-        unit: 'pt',
-        format: activeSheetDim.pdfFormat as any
+      // Restore shadows
+      pageSheets.forEach((sheet, idx) => {
+        sheet.style.boxShadow = origBoxShadows[idx] || '';
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const totalCanvasPages = pagesCount;
-      const singlePageCanvasHeight = canvas.height / totalCanvasPages;
+      const containerWidth = containerEl.offsetWidth || 1;
+      const containerHeight = containerEl.offsetHeight || 1;
+      const scaleX = canvas.width / containerWidth;
+      const scaleY = canvas.height / containerHeight;
 
-      for (let p = 0; p < totalCanvasPages; p++) {
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = singlePageCanvasHeight;
-        const ctx = pageCanvas.getContext('2d');
+      if (exportMode === 'spreads' && previousViewMode === 'dual') {
+        // 2-Page Spreads Mode: 2 pages side-by-side per PDF page in landscape orientation
+        const numSpreads = Math.ceil(pageSheets.length / 2);
+        const spreadWidthPt = (activeSheetDim.width * 2 + 32) * 0.75;
+        const spreadHeightPt = activeSheetDim.height * 0.75;
 
-        if (ctx) {
-          ctx.drawImage(
-            canvas,
-            0,
-            p * singlePageCanvasHeight,
-            canvas.width,
-            singlePageCanvasHeight,
-            0,
-            0,
-            canvas.width,
-            singlePageCanvasHeight
-          );
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'pt',
+          format: [spreadWidthPt, spreadHeightPt]
+        });
 
-          const imgData = pageCanvas.toDataURL('image/jpeg', 0.98);
-          if (p > 0) {
-            pdf.addPage(activeSheetDim.pdfFormat as any, activeSheetDim.width > activeSheetDim.height ? 'landscape' : 'portrait');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+        for (let s = 0; s < numSpreads; s++) {
+          const sheet1 = pageSheets[s * 2];
+          const sheet2 = pageSheets[s * 2 + 1];
+
+          if (!sheet1) continue;
+
+          const top = sheet1.offsetTop;
+          const height = activeSheetDim.height;
+          const left = 0;
+          const width = containerWidth;
+
+          const sx = Math.max(0, Math.round(left * scaleX));
+          const sy = Math.max(0, Math.round(top * scaleY));
+          const sw = Math.min(canvas.width - sx, Math.round(width * scaleX));
+          const sh = Math.min(canvas.height - sy, Math.round(height * scaleY));
+
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = sw;
+          pageCanvas.height = sh;
+          const ctx = pageCanvas.getContext('2d');
+
+          if (ctx) {
+            ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            const imgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+            if (s > 0) {
+              pdf.addPage([spreadWidthPt, spreadHeightPt], 'landscape');
+            }
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
           }
-          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
         }
+
+        const safeTitle = (title.trim() || 'Urdu-Document').replace(/[/\\?%*:|"<>]/g, '_');
+        pdf.save(`${safeTitle}-spreads.pdf`);
+
+        onShowToast({
+          type: 'success',
+          title: '2-Page Spread PDF Downloaded!',
+          description: `Saved "${safeTitle}-spreads.pdf" (${numSpreads} spread${numSpreads > 1 ? 's' : ''}).`
+        });
+      } else {
+        // Standard Multi-Page PDF: each page sheet is an exact, individual full portrait page in reading sequence
+        const pdf = new jsPDF({
+          orientation: activeSheetDim.width > activeSheetDim.height ? 'landscape' : 'portrait',
+          unit: 'pt',
+          format: activeSheetDim.pdfFormat as any
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const totalSheets = pageSheets.length;
+
+        for (let p = 0; p < totalSheets; p++) {
+          const sheetEl = pageSheets[p];
+
+          const sx = Math.max(0, Math.round(sheetEl.offsetLeft * scaleX));
+          const sy = Math.max(0, Math.round(sheetEl.offsetTop * scaleY));
+          const sw = Math.min(canvas.width - sx, Math.round(sheetEl.offsetWidth * scaleX));
+          const sh = Math.min(canvas.height - sy, Math.round(sheetEl.offsetHeight * scaleY));
+
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = sw;
+          pageCanvas.height = sh;
+          const ctx = pageCanvas.getContext('2d');
+
+          if (ctx) {
+            ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            const imgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+            if (p > 0) {
+              pdf.addPage(activeSheetDim.pdfFormat as any, activeSheetDim.width > activeSheetDim.height ? 'landscape' : 'portrait');
+            }
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+          }
+        }
+
+        const safeTitle = (title.trim() || 'Urdu-Document').replace(/[/\\?%*:|"<>]/g, '_');
+        pdf.save(`${safeTitle}.pdf`);
+
+        onShowToast({
+          type: 'success',
+          title: 'PDF Downloaded Successfully!',
+          description: `Saved "${safeTitle}.pdf" (${totalSheets} page${totalSheets > 1 ? 's' : ''}).`
+        });
       }
-
-      const safeTitle = (title.trim() || 'Urdu-Document').replace(/[/\\?%*:|"<>]/g, '_');
-      pdf.save(`${safeTitle}.pdf`);
-
-      onShowToast({
-        type: 'success',
-        title: 'PDF Downloaded Successfully!',
-        description: `Saved "${safeTitle}.pdf" (${totalCanvasPages} page${totalCanvasPages > 1 ? 's' : ''}).`
-      });
     } catch (err) {
       console.error('PDF Export Error:', err);
       onShowToast({
@@ -1354,13 +1435,13 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       });
       window.print();
     } finally {
-      // Restore original visual styles in editor workspace
-      pageSheets.forEach((sheet, idx) => {
-        if (origStyles[idx]) {
-          sheet.style.boxShadow = origStyles[idx].shadow;
-          sheet.style.marginBottom = origStyles[idx].margin;
-        }
-      });
+      // Restore previous view mode and zoom
+      if (previousViewMode === 'dual') {
+        setPageViewMode('dual');
+      }
+      if (previousZoom !== 100) {
+        setZoomLevel(previousZoom);
+      }
       setIsExporting(false);
       setExportProgressText('');
     }
@@ -1388,15 +1469,11 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
     const containerEl = documentContainerRef.current;
     const pageSheets = Array.from(containerEl.querySelectorAll('.msword-page-sheet')) as HTMLElement[];
-    const origStyles = pageSheets.map(sheet => ({
-      shadow: sheet.style.boxShadow,
-      margin: sheet.style.marginBottom
-    }));
+    const origBoxShadows = pageSheets.map(sheet => sheet.style.boxShadow);
 
     try {
       pageSheets.forEach(sheet => {
         sheet.style.boxShadow = 'none';
-        sheet.style.marginBottom = '0px';
       });
 
       const exportFilter = (node: HTMLElement) => {
@@ -1445,10 +1522,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       });
     } finally {
       pageSheets.forEach((sheet, idx) => {
-        if (origStyles[idx]) {
-          sheet.style.boxShadow = origStyles[idx].shadow;
-          sheet.style.marginBottom = origStyles[idx].margin;
-        }
+        sheet.style.boxShadow = origBoxShadows[idx] || '';
       });
       setIsExporting(false);
       setExportProgressText('');
@@ -1463,8 +1537,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
   // Color palette options
   const colorPalette = [
-    { label: 'Dark Charcoal', hex: '#1e293b' },
+    { label: 'Deep Rich Black', hex: '#111111' },
     { label: 'Pitch Black', hex: '#000000' },
+    { label: 'Dark Charcoal', hex: '#1e293b' },
     { label: 'Sapphire Blue', hex: '#2563eb' },
     { label: 'Navy Blue', hex: '#1e3a8a' },
     { label: 'Emerald Green', hex: '#059669' },
@@ -1477,7 +1552,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
   // Resolve actual border color string
   const resolvedBorderColor = () => {
-    if (borderColorTone === 'dark') return '#1e293b';
+    if (borderColorTone === 'dark') return '#111111';
     if (borderColorTone === 'light') return '#cbd5e1';
     if (borderColorTone === 'primary') return '#2563eb';
     if (borderColorTone === 'gold') return '#b45309';
@@ -3182,17 +3257,39 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             <div className="space-y-2">
               <button
                 id="btn-download-pdf-direct"
-                onClick={handleDirectPDFDownload}
+                onClick={() => handleDirectPDFDownload('pages')}
                 className="w-full text-left p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-950 flex items-center gap-3 transition font-semibold text-gray-800 border border-emerald-100 bg-emerald-50/40"
               >
                 <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
                   <FileDown className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="leading-tight text-sm font-bold text-emerald-900">Download PDF</p>
-                  <p className="text-[11px] font-normal text-gray-500 mt-0.5">High quality multi-page PDF document</p>
+                  <p className="leading-tight text-sm font-bold text-emerald-900">
+                    {pageViewMode === 'dual' ? 'Download PDF (معیاری صفحات)' : 'Download PDF'}
+                  </p>
+                  <p className="text-[11px] font-normal text-gray-500 mt-0.5">
+                    {pageViewMode === 'dual'
+                      ? 'Every page on an individual crisp sheet in reading sequence'
+                      : 'High quality multi-page PDF document'}
+                  </p>
                 </div>
               </button>
+
+              {pageViewMode === 'dual' && (
+                <button
+                  id="btn-download-pdf-spreads"
+                  onClick={() => handleDirectPDFDownload('spreads')}
+                  className="w-full text-left p-3 rounded-xl hover:bg-purple-50 hover:text-purple-950 flex items-center gap-3 transition font-semibold text-gray-800 border border-purple-100 bg-purple-50/40"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="leading-tight text-sm font-bold text-purple-900">2-Page Spreads PDF (دو صفحے بالمقابل)</p>
+                    <p className="text-[11px] font-normal text-gray-500 mt-0.5">Side-by-side book spread layout on landscape pages</p>
+                  </div>
+                </button>
+              )}
 
               <button
                 id="btn-download-image-gallery"

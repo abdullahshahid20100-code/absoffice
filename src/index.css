@@ -3,107 +3,184 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    color: #111111;
   }
 }
 
+/* Crisp Typography & Script Font Styles */
 .font-nastaliq {
   font-family: 'Noto Nastaliq Urdu', 'Gulzar', 'Jameel Noori Nastaleeq', 'Nafees Nastaleeq', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  line-height: 2.2;
+  line-height: 1.8;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .font-gulzar {
   font-family: 'Gulzar', 'Noto Nastaliq Urdu', 'Plus Jakarta Sans', system-ui, serif;
+  line-height: 1.75;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .font-amiri {
   font-family: 'Amiri', 'Times New Roman', serif;
+  line-height: 1.7;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-arabic-sans {
   font-family: 'Noto Sans Arabic', 'Plus Jakarta Sans', system-ui, sans-serif;
+  line-height: 1.65;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-lateef {
   font-family: 'Lateef', 'Plus Jakarta Sans', serif;
-  line-height: 2.0;
+  line-height: 1.8;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-scheherazade {
   font-family: 'Scheherazade New', 'Plus Jakarta Sans', serif;
+  line-height: 1.7;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Canva Handwriting & Cursive Scripts */
 .font-caveat {
   font-family: 'Caveat', cursive, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-dancing {
   font-family: 'Dancing Script', cursive, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-great-vibes {
   font-family: 'Great Vibes', cursive, serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-pacifico {
   font-family: 'Pacifico', cursive, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-sacramento {
   font-family: 'Sacramento', cursive, serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-alex-brush {
   font-family: 'Alex Brush', cursive, serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-kalam {
   font-family: 'Kalam', cursive, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-indie-flower {
   font-family: 'Indie Flower', cursive, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Canva Modern, Luxury Serif & Editorial */
 .font-playfair {
   font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-cinzel {
   font-family: 'Cinzel', serif;
   letter-spacing: 0.04em;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-montserrat {
   font-family: 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-oswald {
   font-family: 'Oswald', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-sans-custom {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-serif-custom {
   font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-mono-custom {
   font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Document canvas and editing styles */
+/* Document Canvas & High-Contrast Typography */
 .document-canvas-editable {
   outline: none;
   min-height: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  unicode-bidi: plaintext;
+  color: #111111;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1;
 }
 
 .document-canvas-editable[placeholder]:empty:before {
   content: attr(placeholder);
-  color: #9ca3af;
+  color: #6b7280;
   pointer-events: none;
 }
 
@@ -112,6 +189,9 @@
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
+  background-color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .page-frame-boundary {
@@ -119,15 +199,6 @@
   position: absolute;
   pointer-events: none;
   overflow: hidden;
-}
-
-.document-canvas-editable {
-  outline: none;
-  min-height: 100%;
-  box-sizing: border-box;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  unicode-bidi: plaintext;
 }
 
 .document-canvas-editable * {
@@ -138,64 +209,76 @@
 .document-canvas-editable h1 {
   font-size: 2.25em !important;
   font-weight: 800 !important;
-  line-height: 1.3 !important;
+  line-height: 1.35 !important;
   margin-top: 0.6em !important;
   margin-bottom: 0.35em !important;
-  color: #0f172a;
+  color: #111111 !important;
   display: block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .document-canvas-editable h2 {
   font-size: 1.7em !important;
   font-weight: 700 !important;
-  line-height: 1.35 !important;
+  line-height: 1.4 !important;
   margin-top: 0.5em !important;
   margin-bottom: 0.3em !important;
-  color: #1e293b;
+  color: #111111 !important;
   display: block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .document-canvas-editable h3 {
   font-size: 1.35em !important;
   font-weight: 700 !important;
-  line-height: 1.4 !important;
+  line-height: 1.45 !important;
   margin-top: 0.4em !important;
   margin-bottom: 0.25em !important;
-  color: #334155;
+  color: #111111 !important;
   display: block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .document-canvas-editable p {
-  margin-bottom: 0.4em;
+  margin-bottom: 0.45em;
   min-height: 1.2em;
+  color: #111111;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .document-canvas-editable blockquote {
-  border-right: 4px solid #2563eb;
+  border-right: 4px solid #111111;
   padding: 0.5rem 1rem;
   margin: 0.75rem 0;
   font-style: italic;
-  background: rgba(37, 99, 235, 0.05);
+  background: rgba(0, 0, 0, 0.03);
   border-radius: 4px;
-  color: #475569;
+  color: #111111;
   display: block;
 }
 
 [dir="ltr"] .document-canvas-editable blockquote,
 .document-canvas-editable[style*="direction: ltr"] blockquote {
   border-right: none;
-  border-left: 4px solid #2563eb;
+  border-left: 4px solid #111111;
 }
 
 .document-canvas-editable pre {
-  background: #f1f5f9;
+  background: #f8fafc;
   padding: 0.75rem 1rem;
   border-radius: 8px;
+  border: 1px solid #e2e8f0;
   font-family: 'Courier Prime', monospace;
   font-size: 0.9em;
   margin: 0.5rem 0;
   white-space: pre-wrap;
   display: block;
+  color: #111111;
 }
 
 .document-canvas-editable ul {
@@ -203,6 +286,7 @@
   margin: 0.5rem 0 !important;
   padding-inline-start: 1.75rem !important;
   display: block;
+  color: #111111;
 }
 
 .document-canvas-editable ol {
@@ -210,21 +294,23 @@
   margin: 0.5rem 0 !important;
   padding-inline-start: 1.75rem !important;
   display: block;
+  color: #111111;
 }
 
 .document-canvas-editable li {
   display: list-item !important;
   margin-bottom: 0.25rem !important;
+  color: #111111;
 }
 
 /* User Selection highlight inside canvas */
 .document-canvas-editable ::selection {
   background-color: #bfdbfe;
-  color: #1e3a8a;
+  color: #0f172a;
 }
 
 .msword-page-container {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 14px 34px -6px rgba(0, 0, 0, 0.35), 0 8px 12px -6px rgba(0, 0, 0, 0.25);
   box-sizing: border-box;
 }
 
@@ -233,12 +319,20 @@
   page-break-before: always;
 }
 
-/* Print styles for authentic PDF and print output with true page breaks */
+/* PDF Export CSS (@page & Print Rules) */
+@page {
+  size: A4;
+  margin: 20mm;
+}
+
 @media print {
-  body {
-    background: white !important;
+  html, body {
+    background: #ffffff !important;
     padding: 0 !important;
     margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color: #111111 !important;
   }
   .no-print {
     display: none !important;
@@ -254,14 +348,18 @@
     display: none !important;
     height: 0 !important;
   }
+  .msword-page-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
   .msword-page-container {
     box-shadow: none !important;
     margin: 0 !important;
-    page-break-after: always;
-    break-after: page;
-  }
-  @page {
-    size: A4 portrait;
-    margin: 15mm;
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }
