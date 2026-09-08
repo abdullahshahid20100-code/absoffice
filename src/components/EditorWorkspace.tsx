@@ -39,12 +39,14 @@ import {
   Layers,
   HelpCircle,
   Wand2,
-  BookOpen
+  BookOpen,
+  Feather
 } from 'lucide-react';
 import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { SavedDocument, PageSize } from '../types';
 import { UrduKeyboard } from './UrduKeyboard';
+import { PoetryModal } from './PoetryModal';
 import { AVAILABLE_TEXT_STYLES, transformTextStyle, transformLiveChar, TextStyleOption } from '../utils/textStyler';
 
 interface EditorWorkspaceProps {
@@ -144,6 +146,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const [isUrduKeyboardOpen, setIsUrduKeyboardOpen] = useState(false);
   const [isFancyFontsModalOpen, setIsFancyFontsModalOpen] = useState(false);
+  const [isPoetryModalOpen, setIsPoetryModalOpen] = useState(false);
   const [customFancyInput, setCustomFancyInput] = useState('Type something to start');
   const [copiedStyleId, setCopiedStyleId] = useState<string | null>(null);
   const [insertedStyleId, setInsertedStyleId] = useState<string | null>(null);
@@ -716,6 +719,67 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       description: 'تحریر شامل ہو گئی ہے اور اب آگے ٹائپنگ بھی اسی فونٹ میں ہو گی۔'
     });
     setTimeout(recalculatePagination, 50);
+  };
+
+  const handleInsertPoetry = (
+    htmlToInsert: string,
+    options?: { animateTypewriter?: boolean; textLines?: string[] }
+  ) => {
+    if (!editorRef.current) return;
+    const contentEl = editorRef.current;
+    contentEl.focus();
+
+    // Try restoring saved selection range if valid
+    let selectionRestored = false;
+    if (savedSelectionRef.current && contentEl.contains(savedSelectionRef.current.commonAncestorContainer)) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedSelectionRef.current);
+        selectionRestored = true;
+      }
+    }
+
+    if (pageViewMode === 'dual') {
+      const spreads = contentEl.querySelectorAll('.dual-spread-row');
+      const targetSpread = (spreads.length > 0 ? spreads[spreads.length - 1] : contentEl) as HTMLElement;
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlToInsert;
+      while (tempDiv.firstChild) {
+        targetSpread.appendChild(tempDiv.firstChild);
+      }
+    } else {
+      const sel = window.getSelection();
+      if (selectionRestored || (sel && sel.rangeCount > 0 && contentEl.contains(sel.anchorNode))) {
+        try {
+          document.execCommand('insertHTML', false, htmlToInsert);
+        } catch {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlToInsert;
+          while (tempDiv.firstChild) {
+            contentEl.appendChild(tempDiv.firstChild);
+          }
+        }
+      } else {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlToInsert;
+        while (tempDiv.firstChild) {
+          contentEl.appendChild(tempDiv.firstChild);
+        }
+      }
+    }
+
+    recalculatePagination();
+
+    setTimeout(() => {
+      recalculatePagination();
+      const poetryBlocks = contentEl.querySelectorAll('[data-poetry="true"]');
+      if (poetryBlocks && poetryBlocks.length > 0) {
+        const lastBlock = poetryBlocks[poetryBlocks.length - 1] as HTMLElement;
+        lastBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   const handleFontFamilyChange = (fontClass: string) => {
@@ -1666,6 +1730,21 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
           {/* Right Action Buttons: Copy, Save, Direct Download */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Quick Poetry Composer Button in top bar */}
+            <button
+              id="editor-btn-poetry-quick"
+              onClick={() => {
+                saveSelection();
+                setIsPoetryModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl transition shadow-2xs active:scale-98"
+              title="Poetry Studio / شاعری (اردو اور انگریزی)"
+            >
+              <Feather className="w-4 h-4 text-emerald-600" />
+              <span className="font-nastaliq text-xs leading-none">شاعری</span>
+              <span className="hidden sm:inline text-xs font-semibold text-emerald-700">/ Poetry</span>
+            </button>
+
             <button
               id="editor-btn-copy"
               onClick={handleCopy}
@@ -1841,6 +1920,23 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-200" />
           <span className="hidden sm:inline">اسٹائلش فونٹس</span>
           <span className="sm:hidden">Fancy</span>
+        </button>
+
+        {/* Poetry Studio / شاعری Button (Urdu & English Poetry) */}
+        <button
+          id="toolbar-btn-poetry"
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            saveSelection();
+            setIsPoetryModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 hover:from-emerald-700 hover:to-cyan-800 text-white font-bold text-xs rounded-lg shadow-xs transition active:scale-95 shrink-0"
+          title="Poetry Studio / شاعری (اردو اور انگریزی شاعری شامل کریں)"
+        >
+          <Feather className="w-3.5 h-3.5 text-emerald-200" />
+          <span className="font-nastaliq text-xs leading-none font-bold">شاعری</span>
+          <span className="text-[11px] opacity-95">/ Poetry</span>
         </button>
 
         {/* Font Size Selector & Stepper [-] [Size Dropdown] [+] */}
@@ -3611,6 +3707,14 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         isOpen={isUrduKeyboardOpen}
         onClose={() => setIsUrduKeyboardOpen(false)}
         onInsertChar={handleInsertChar}
+      />
+
+      {/* 13. Poetry Studio Modal (اردو اور انگریزی شاعری) */}
+      <PoetryModal
+        isOpen={isPoetryModalOpen}
+        onClose={() => setIsPoetryModalOpen(false)}
+        onInsertPoetry={handleInsertPoetry}
+        onShowToast={onShowToast}
       />
     </div>
   );
