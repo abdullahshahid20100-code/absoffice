@@ -45,10 +45,12 @@ import {
 } from 'lucide-react';
 import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { SavedDocument, PageSize } from '../types';
+import { SavedDocument, PageSize, DocumentTemplate } from '../types';
 import { UrduKeyboard } from './UrduKeyboard';
 import { PoetryModal } from './PoetryModal';
 import { PageColorModal, isColorDark } from './PageColorModal';
+import { CanvaSidebar, CanvaSidebarTab } from './CanvaSidebar';
+import { CanvaImageOverlay } from './CanvaImageOverlay';
 import { AVAILABLE_TEXT_STYLES, transformTextStyle, transformLiveChar, TextStyleOption } from '../utils/textStyler';
 
 interface EditorWorkspaceProps {
@@ -151,6 +153,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [isUrduKeyboardOpen, setIsUrduKeyboardOpen] = useState(false);
   const [isFancyFontsModalOpen, setIsFancyFontsModalOpen] = useState(false);
   const [isPoetryModalOpen, setIsPoetryModalOpen] = useState(false);
+  const [canvaSidebarTab, setCanvaSidebarTab] = useState<CanvaSidebarTab>(null);
   const [customFancyInput, setCustomFancyInput] = useState('Type something to start');
   const [copiedStyleId, setCopiedStyleId] = useState<string | null>(null);
   const [insertedStyleId, setInsertedStyleId] = useState<string | null>(null);
@@ -507,11 +510,6 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         e.stopPropagation();
         setSelectedImage(img);
 
-        // Highlight selected image with subtle outline
-        images.forEach(i => (i.style.outline = 'none'));
-        img.style.outline = '3px solid #2563eb';
-        img.style.outlineOffset = '3px';
-
         // Read current inline styles of the image
         const currentWidth = img.style.width || '50%';
         if (currentWidth.endsWith('%')) {
@@ -626,6 +624,23 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     }
   };
 
+  // Duplicate selected image
+  const handleDuplicateSelectedImage = () => {
+    if (!selectedImage || !editorRef.current) return;
+    const clone = selectedImage.cloneNode(true) as HTMLImageElement;
+    selectedImage.parentNode?.insertBefore(clone, selectedImage.nextSibling);
+    setTimeout(() => {
+      attachImageListeners();
+      setSelectedImage(clone);
+      recalculatePagination();
+      onShowToast({
+        type: 'success',
+        title: 'Image Duplicated',
+        description: 'New copy inserted.'
+      });
+    }, 50);
+  };
+
   // Generic document command executor
   const executeCommand = (command: string, value: string | undefined = undefined) => {
     if (editorRef.current) {
@@ -722,6 +737,52 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       title: 'شامل کر دیا گیا (Inserted & Font Active)',
       description: 'تحریر شامل ہو گئی ہے اور اب آگے ٹائپنگ بھی اسی فونٹ میں ہو گی۔'
     });
+    setTimeout(recalculatePagination, 50);
+  };
+
+  const handleApplyTemplate = (tpl: DocumentTemplate) => {
+    if (!editorRef.current) return;
+    setTitle(tpl.defaultTitle);
+    setFontFamily(tpl.defaultFont);
+    setDirection(tpl.defaultDirection);
+    setTextAlign(tpl.defaultAlign);
+    setLineHeight(tpl.defaultLineHeight);
+    setHasBorder(tpl.hasBorder);
+
+    editorRef.current.innerHTML = tpl.defaultContent;
+    onShowToast({
+      type: 'success',
+      title: 'Template Applied! (ٹیمپلیٹ لاگو ہو گیا)',
+      description: `Loaded "${tpl.name}" template into document.`
+    });
+    setTimeout(recalculatePagination, 50);
+  };
+
+  const handleInsertTextOrHtml = (text: string, asHtml: boolean = false) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+
+    if (savedSelectionRef.current && editorRef.current.contains(savedSelectionRef.current.commonAncestorContainer)) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedSelectionRef.current);
+      }
+    }
+
+    if (asHtml) {
+      try {
+        document.execCommand('insertHTML', false, text);
+      } catch {
+        const div = document.createElement('div');
+        div.innerHTML = text;
+        while (div.firstChild) {
+          editorRef.current.appendChild(div.firstChild);
+        }
+      }
+    } else {
+      document.execCommand('insertText', false, text);
+    }
     setTimeout(recalculatePagination, 50);
   };
 
@@ -1257,8 +1318,6 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             if (images && images.length > 0) {
               const lastImg = images[images.length - 1] as HTMLImageElement;
               setSelectedImage(lastImg);
-              lastImg.style.outline = '3px solid #2563eb';
-              lastImg.style.outlineOffset = '3px';
               setImageWidthPercent(60);
               setImageAlignment('center');
             }
@@ -1690,7 +1749,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#1e293b] text-gray-900 select-none">
+    <div className="h-screen max-h-screen flex flex-col bg-[#1e293b] text-gray-900 select-none overflow-hidden">
       {/* ==================================================== */}
       {/* 1. TOP STICKY BAR CONTAINER (HEADER + TOOLBAR)       */}
       {/* ==================================================== */}
@@ -1900,23 +1959,6 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-200" />
           <span className="hidden sm:inline">اسٹائلش فونٹس</span>
           <span className="sm:hidden">Fancy</span>
-        </button>
-
-        {/* Poetry Studio / شاعری Button (Urdu & English Poetry) */}
-        <button
-          id="toolbar-btn-poetry"
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            saveSelection();
-            setIsPoetryModalOpen(true);
-          }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 hover:from-emerald-700 hover:to-cyan-800 text-white font-bold text-xs rounded-lg shadow-xs transition active:scale-95 shrink-0"
-          title="Poetry Studio / شاعری (اردو اور انگریزی شاعری شامل کریں)"
-        >
-          <Feather className="w-3.5 h-3.5 text-emerald-200" />
-          <span className="font-nastaliq text-xs leading-none font-bold">شاعری</span>
-          <span className="text-[11px] opacity-95">/ Poetry</span>
         </button>
 
         {/* Font Size Selector & Stepper [-] [Size Dropdown] [+] */}
@@ -2178,334 +2220,95 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
         </div>
 
-        {/* Divider */}
-        <div className="h-6 w-[1px] bg-gray-200 shrink-0" />
-
-        {/* ==================================================== */}
-        {/* VIEW MODE TOGGLE: SINGLE PAGE vs TWO-PAGE (DUAL)    */}
-        {/* ==================================================== */}
-        <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-300 shrink-0">
-          <button
-            id="toolbar-view-single"
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setPageViewMode('single');
-              setTimeout(recalculatePagination, 50);
-            }}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition ${
-              pageViewMode === 'single'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-gray-700 hover:bg-gray-200'
-            }`}
-            title="Single Page View / ایک صفحہ"
-          >
-            <Square className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">1 Page</span>
-          </button>
-          <button
-            id="toolbar-view-dual"
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setPageViewMode('dual');
-              setTimeout(recalculatePagination, 50);
-            }}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition ${
-              pageViewMode === 'dual'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-gray-700 hover:bg-gray-200'
-            }`}
-            title="Two-Page Side-by-Side View (MS Word style) / دو صفحات (بالمقابل)"
-          >
-            <Columns2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">2 Pages (Side-by-Side)</span>
-            <span className="sm:hidden">2 Pages</span>
-          </button>
-        </div>
-
-        {/* Divider */}
-        <div className="h-6 w-[1px] bg-gray-200 shrink-0" />
-
-        {/* ==================================================== */}
-        {/* 1. FRAME / BORDER SETTINGS BUTTON                    */}
-        {/* ==================================================== */}
-        <button
-          id="toolbar-btn-border-settings"
-          onClick={() => setIsBorderModalOpen(true)}
-          className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium transition shrink-0 ${
-            hasBorder
-              ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-2xs font-semibold'
-              : 'bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-700'
-          }`}
-          title="Page Frame / بارڈر سیٹنگز"
-        >
-          <Square className="w-3.5 h-3.5 text-blue-600" />
-          <span>Frame: {hasBorder ? 'On' : 'Off'}</span>
-        </button>
-
-        {/* ==================================================== */}
-        {/* 2. LIVE WORDS & STATS BUTTON                         */}
-        {/* ==================================================== */}
-        <button
-          id="toolbar-word-count-toggle"
-          onClick={() => setIsWordCountOpen(true)}
-          className="bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1.5 shrink-0"
-          title="Live Words & Document Stats"
-        >
-          <span className="font-semibold text-blue-700">Words: {wordCount}</span>
-        </button>
-
-        {/* ==================================================== */}
-        {/* 3. SHEET SIZE BUTTON                                 */}
-        {/* ==================================================== */}
-        <button
-          id="toolbar-page-size"
-          onClick={() => setIsPageSizeOpen(true)}
-          className="flex items-center gap-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 shrink-0"
-          title="Change Sheet Dimensions"
-        >
-          <FileText className="w-3.5 h-3.5 text-blue-600" />
-          <span className="font-semibold">{pageSize}</span>
-        </button>
-
-        {/* Utilities: Insert Image, Undo, Redo, Urdu Keyboard */}
-        <div className="flex items-center gap-1 shrink-0">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageUpload}
-            accept="image/*"
-            className="hidden"
-          />
-          <button
-            id="toolbar-btn-image"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-1.5 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-200 text-gray-700 transition"
-            title="Insert Image (تصویر شامل کریں)"
-          >
-            <ImageIcon className="w-4 h-4 text-blue-600" />
-          </button>
-
-          <button
-            id="toolbar-btn-undo"
-            onClick={() => executeCommand('undo')}
-            className="p-1.5 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-200 text-gray-700 transition"
-            title="Undo (Ctrl+Z)"
-          >
-            <Undo className="w-4 h-4" />
-          </button>
-
-          <button
-            id="toolbar-btn-redo"
-            onClick={() => executeCommand('redo')}
-            className="p-1.5 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-200 text-gray-700 transition"
-            title="Redo (Ctrl+Y)"
-          >
-            <Redo className="w-4 h-4" />
-          </button>
-
-          <button
-            id="toolbar-btn-urdu-keyboard"
-            onClick={() => setIsUrduKeyboardOpen(!isUrduKeyboardOpen)}
-            className={`p-1.5 rounded-lg border transition ${
-              isUrduKeyboardOpen
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-gray-50 border-gray-300 hover:bg-gray-200 text-gray-700'
-            }`}
-            title="Toggle Virtual Urdu Keyboard"
-          >
-            <Keyboard className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Hidden File Input for Image Upload (Triggered via Right Sidebar Uploads) */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+          accept="image/*"
+          className="hidden"
+        />
       </div>
     </div>
 
       {/* ==================================================== */}
-      {/* 3. INTERACTIVE FLOATING IMAGE CONTROLLER             */}
+      {/* 4. MULTI-PAGE CANVAS CONTAINER + CANVA SIDEBAR       */}
       {/* ==================================================== */}
-      {selectedImage && (
-        <div
-          id="image-inspector-panel"
-          className="bg-white/95 backdrop-blur-md border border-blue-400 shadow-2xl rounded-2xl px-4 py-3 mx-4 my-2 sticky top-[108px] z-40 flex flex-wrap items-center justify-between gap-3 text-xs animate-in slide-in-from-top-2 duration-150"
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Canva-style LEFT Vertical Sidebar Dock & Expandable Flyout Panel */}
+        <CanvaSidebar
+          activeTab={canvaSidebarTab}
+          setActiveTab={setCanvaSidebarTab}
+          onApplyTemplate={handleApplyTemplate}
+          onInsertText={handleInsertTextOrHtml}
+          onOpenPoetryModal={() => {
+            saveSelection();
+            setIsPoetryModalOpen(true);
+          }}
+          onOpenFancyFontsModal={() => {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && !sel.isCollapsed && sel.toString().trim().length > 0) {
+              setCustomFancyInput(sel.toString());
+            } else if (savedSelectionRef.current && !savedSelectionRef.current.collapsed && savedSelectionRef.current.toString().trim().length > 0) {
+              setCustomFancyInput(savedSelectionRef.current.toString());
+            } else {
+              setCustomFancyInput(direction === 'rtl' ? 'عبداللہ' : 'Type something to start');
+            }
+            setIsFancyFontsModalOpen(true);
+          }}
+          onOpenBorderModal={() => setIsBorderModalOpen(true)}
+          onOpenPageSizeModal={() => setIsPageSizeOpen(true)}
+          onOpenPageColorModal={() => setIsPageColorModalOpen(true)}
+          pageColor={pageColor}
+          setPageColor={(color) => {
+            setPageColor(color);
+          }}
+          hasBorder={hasBorder}
+          setHasBorder={setHasBorder}
+          borderType={borderType}
+          setBorderType={setBorderType}
+          borderColorTone={borderColorTone}
+          setBorderColorTone={setBorderColorTone}
+          isUrduKeyboardOpen={isUrduKeyboardOpen}
+          setIsUrduKeyboardOpen={setIsUrduKeyboardOpen}
+          onTriggerImageUpload={() => fileInputRef.current?.click()}
+          wordCount={wordCount}
+          charCount={charCount}
+          pagesCount={pagesCount}
+          pageSize={pageSize}
+          onUndo={() => executeCommand('undo')}
+          onRedo={() => executeCommand('redo')}
+        />
+
+        {/* Center Document Canvas Workspace */}
+        <main
+          ref={workspaceScrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 sm:p-8 md:p-12 flex flex-col items-center bg-[#1e293b] relative"
         >
-          <div className="flex items-center gap-2 pr-3 border-r border-gray-200 font-bold text-gray-900">
-            <ImageIcon className="w-4 h-4 text-blue-600" />
-            <span>Image Settings (تصویر کی پوزیشن و سائز)</span>
-          </div>
+          {/* Canva Interactive Image Resize & Selection Overlay */}
+          <CanvaImageOverlay
+            selectedImage={selectedImage}
+            workspaceRef={workspaceScrollRef}
+            onDeselect={() => {
+              if (selectedImage) selectedImage.style.outline = 'none';
+              setSelectedImage(null);
+            }}
+            onDelete={handleDeleteSelectedImage}
+            onDuplicate={handleDuplicateSelectedImage}
+            onUpdate={() => {
+              recalculatePagination();
+            }}
+          />
 
-          {/* Position / Alignment Selector */}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
-            <span className="text-[11px] font-semibold text-gray-500 px-1">Position:</span>
-            <button
-              onClick={() => {
-                setImageAlignment('left');
-                applyImageStyles(imageWidthPercent, 'left', imageRounded, imageShadow, imageBorder);
-              }}
-              className={`px-2.5 py-1 rounded-lg font-medium transition ${
-                imageAlignment === 'left' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Align Left"
-            >
-              Left
-            </button>
-            <button
-              onClick={() => {
-                setImageAlignment('center');
-                applyImageStyles(imageWidthPercent, 'center', imageRounded, imageShadow, imageBorder);
-              }}
-              className={`px-2.5 py-1 rounded-lg font-medium transition ${
-                imageAlignment === 'center' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Align Center"
-            >
-              Center
-            </button>
-            <button
-              onClick={() => {
-                setImageAlignment('right');
-                applyImageStyles(imageWidthPercent, 'right', imageRounded, imageShadow, imageBorder);
-              }}
-              className={`px-2.5 py-1 rounded-lg font-medium transition ${
-                imageAlignment === 'right' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Align Right"
-            >
-              Right
-            </button>
-            <button
-              onClick={() => {
-                setImageAlignment('float-left');
-                applyImageStyles(imageWidthPercent, 'float-left', imageRounded, imageShadow, imageBorder);
-              }}
-              className={`px-2.5 py-1 rounded-lg font-medium transition ${
-                imageAlignment === 'float-left' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Float Left (Text wraps around)"
-            >
-              Float Left
-            </button>
-            <button
-              onClick={() => {
-                setImageAlignment('float-right');
-                applyImageStyles(imageWidthPercent, 'float-right', imageRounded, imageShadow, imageBorder);
-              }}
-              className={`px-2.5 py-1 rounded-lg font-medium transition ${
-                imageAlignment === 'float-right' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Float Right (Text wraps around)"
-            >
-              Float Right
-            </button>
-          </div>
+          {/* Floating Page Status & Zoom Controls with Quick Add Page and View Mode */}
+          {(() => {
+            const displayedPagesCount = pageViewMode === 'dual'
+              ? Math.max(2, pagesCount % 2 === 0 ? pagesCount : pagesCount + 1)
+              : pagesCount;
 
-          {/* Size Slider & Quick Presets */}
-          <div className="flex items-center gap-2 bg-gray-100 p-1 px-2.5 rounded-xl">
-            <span className="text-[11px] font-semibold text-gray-500">Size:</span>
-            <input
-              type="range"
-              min={15}
-              max={100}
-              value={imageWidthPercent}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                setImageWidthPercent(val);
-                applyImageStyles(val, imageAlignment, imageRounded, imageShadow, imageBorder);
-              }}
-              className="w-24 h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
-            <span className="font-mono font-bold text-blue-700 min-w-[32px] text-right">
-              {imageWidthPercent}%
-            </span>
-
-            {/* Quick Size Presets */}
-            <div className="flex items-center gap-1 ml-1 border-l border-gray-300 pl-2">
-              {[25, 50, 75, 100].map((pct) => (
-                <button
-                  key={pct}
-                  onClick={() => {
-                    setImageWidthPercent(pct);
-                    applyImageStyles(pct, imageAlignment, imageRounded, imageShadow, imageBorder);
-                  }}
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition ${
-                    imageWidthPercent === pct ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {pct}%
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Styling: Rounded & Shadow */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                const nextRounded = imageRounded === 'none' ? 'md' : imageRounded === 'md' ? 'full' : 'none';
-                setImageRounded(nextRounded);
-                applyImageStyles(imageWidthPercent, imageAlignment, nextRounded, imageShadow, imageBorder);
-              }}
-              className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-medium text-gray-700 transition"
-              title="Toggle Rounded Corners"
-            >
-              Corners: {imageRounded}
-            </button>
-
-            <button
-              onClick={() => {
-                const nextShadow = !imageShadow;
-                setImageShadow(nextShadow);
-                applyImageStyles(imageWidthPercent, imageAlignment, imageRounded, nextShadow, imageBorder);
-              }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition ${
-                imageShadow ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Toggle Shadow"
-            >
-              Shadow: {imageShadow ? 'On' : 'Off'}
-            </button>
-
-            {/* Delete Image */}
-            <button
-              onClick={handleDeleteSelectedImage}
-              className="flex items-center gap-1 px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-semibold rounded-lg transition border border-red-200 ml-1"
-              title="Delete Image"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
-            </button>
-
-            {/* Close Inspector */}
-            <button
-              onClick={() => {
-                if (selectedImage) selectedImage.style.outline = 'none';
-                setSelectedImage(null);
-              }}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-              title="Deselect"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ==================================================== */}
-      {/* 4. MULTI-PAGE CANVAS CONTAINER                       */}
-      {/* ==================================================== */}
-      <main
-        ref={workspaceScrollRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 sm:p-8 md:p-12 flex flex-col items-center bg-[#1e293b] relative"
-      >
-        {/* Floating Page Status & Zoom Controls with Quick Add Page and View Mode */}
-        {(() => {
-          const displayedPagesCount = pageViewMode === 'dual'
-            ? Math.max(2, pagesCount % 2 === 0 ? pagesCount : pagesCount + 1)
-            : pagesCount;
-
-          return (
-            <div className="fixed bottom-6 right-6 z-20 flex items-center gap-2.5 bg-gray-900/90 text-white backdrop-blur-md px-3.5 py-2 rounded-full shadow-2xl border border-gray-700 no-print text-xs">
+            return (
+              <div className="fixed bottom-6 right-6 z-20 flex items-center gap-2.5 bg-gray-900/90 text-white backdrop-blur-md px-3.5 py-2 rounded-full shadow-2xl border border-gray-700 no-print text-xs">
               {/* View Mode Quick Switcher */}
               <div className="flex items-center gap-1 pr-2 border-r border-gray-700">
                 <button
@@ -2825,6 +2628,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           );
         })()}
       </main>
+    </div>
 
       {/* ==================================================== */}
       {/* 5. MODAL: FRAME / BORDER SETTINGS DIALOG (NEVER CLIPS)*/}
