@@ -189,9 +189,10 @@
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
-  background-color: #ffffff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .page-frame-boundary {
@@ -355,6 +356,8 @@
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .msword-page-container {
     box-shadow: none !important;

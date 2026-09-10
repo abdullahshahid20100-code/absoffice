@@ -48,6 +48,7 @@ export default function App() {
       textAlign: 'right',
       direction: 'rtl',
       pageSize: 'A4',
+      pageColor: '#ffffff',
       updatedAt: Date.now(),
       wordCount: 12,
       charCount: 65
@@ -84,6 +85,7 @@ export default function App() {
       textAlign: tpl.defaultAlign,
       direction: tpl.defaultDirection,
       pageSize: 'A4',
+      pageColor: tpl.pageColor || '#ffffff',
       deviceId: deviceId,
       updatedAt: Date.now(),
       wordCount: 0,

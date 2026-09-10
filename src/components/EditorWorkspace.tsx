@@ -40,13 +40,15 @@ import {
   HelpCircle,
   Wand2,
   BookOpen,
-  Feather
+  Feather,
+  PaintBucket
 } from 'lucide-react';
 import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { SavedDocument, PageSize } from '../types';
 import { UrduKeyboard } from './UrduKeyboard';
 import { PoetryModal } from './PoetryModal';
+import { PageColorModal, isColorDark } from './PageColorModal';
 import { AVAILABLE_TEXT_STYLES, transformTextStyle, transformLiveChar, TextStyleOption } from '../utils/textStyler';
 
 interface EditorWorkspaceProps {
@@ -121,8 +123,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [pageNumberPosition, setPageNumberPosition] = useState<'inside' | 'footer'>('inside');
   const [pageNumberFormat, setPageNumberFormat] = useState<'urdu' | 'english' | 'simple' | 'plain' | 'plain_urdu'>('urdu');
 
-  // Text Color & Background
+  // Text Color & Page Canvas Background
   const [textColor, setTextColor] = useState('#111111');
+  const [pageColor, setPageColor] = useState<string>(initialDocument.pageColor || '#ffffff');
   const [zoomLevel, setZoomLevel] = useState(100);
 
   // View Mode: Single Page vs Two-Page (Side-by-Side)
@@ -140,6 +143,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
   // Modals & Popovers States (Using clear overlays that never get clipped)
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  const [isPageColorModalOpen, setIsPageColorModalOpen] = useState(false);
   const [isBorderModalOpen, setIsBorderModalOpen] = useState(false);
   const [isWordCountOpen, setIsWordCountOpen] = useState(false);
   const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
@@ -1294,6 +1298,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       textAlign,
       direction,
       pageSize,
+      pageColor,
       viewMode: pageViewMode,
       deviceId: initialDocument.deviceId,
       updatedAt: Date.now(),
@@ -1376,7 +1381,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
       const canvas = await toCanvas(containerEl, {
         pixelRatio: 2,
-        backgroundColor: '#ffffff',
+        backgroundColor: pageColor,
         cacheBust: true,
         skipFonts: true,
         filter: exportFilter as any
@@ -1554,7 +1559,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
       const dataUrl = await toPng(containerEl, {
         pixelRatio: 2,
-        backgroundColor: '#ffffff',
+        backgroundColor: pageColor,
         cacheBust: true,
         skipFonts: true,
         filter: exportFilter as any
@@ -1716,35 +1721,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               placeholder="Untitled Document"
               className="font-bold text-gray-900 text-sm sm:text-base bg-transparent hover:bg-gray-100 focus:bg-white border border-transparent focus:border-blue-400 rounded-lg px-2 py-1 max-w-[140px] sm:max-w-xs md:max-w-md focus:outline-none focus:ring-2 focus:ring-blue-100 transition truncate"
             />
-
-            {/* Active Sheet Badge */}
-            <button
-              onClick={() => setIsPageSizeOpen(true)}
-              className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-gray-200 transition shrink-0"
-              title="Click to change page size"
-            >
-              <FileText className="w-3.5 h-3.5 text-blue-600" />
-              <span>{activeSheetDim.label}</span>
-            </button>
           </div>
 
           {/* Right Action Buttons: Copy, Save, Direct Download */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* Quick Poetry Composer Button in top bar */}
-            <button
-              id="editor-btn-poetry-quick"
-              onClick={() => {
-                saveSelection();
-                setIsPoetryModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl transition shadow-2xs active:scale-98"
-              title="Poetry Studio / شاعری (اردو اور انگریزی)"
-            >
-              <Feather className="w-4 h-4 text-emerald-600" />
-              <span className="font-nastaliq text-xs leading-none">شاعری</span>
-              <span className="hidden sm:inline text-xs font-semibold text-emerald-700">/ Poetry</span>
-            </button>
-
             <button
               id="editor-btn-copy"
               onClick={handleCopy}
@@ -1985,10 +1965,26 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => setIsColorPickerOpen(true)}
           className="p-1.5 rounded-lg hover:bg-gray-100 border border-gray-300 flex flex-col items-center justify-center transition bg-gray-50 shrink-0"
-          title="Text Color / رنگ منتخب کریں"
+          title="Text Color / متن کا رنگ منتخب کریں"
         >
           <span className="font-serif font-bold text-sm leading-none">A</span>
           <div className="w-4 h-1.5 rounded-full mt-0.5" style={{ backgroundColor: textColor }} />
+        </button>
+
+        {/* Page Background Color Picker Button */}
+        <button
+          id="toolbar-btn-page-color"
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setIsPageColorModalOpen(true)}
+          className="p-1.5 rounded-lg hover:bg-gray-100 border border-gray-300 flex flex-col items-center justify-center transition bg-gray-50 shrink-0 cursor-pointer"
+          title="Page Background Color / ورق کا رنگ (صفحہ کا پس منظر)"
+        >
+          <PaintBucket className="w-3.5 h-3.5 text-gray-700" />
+          <div
+            className="w-4 h-1.5 rounded-full mt-0.5 border border-gray-400 shadow-2xs"
+            style={{ backgroundColor: pageColor }}
+          />
         </button>
 
         {/* Divider */}
@@ -2272,30 +2268,6 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           <FileText className="w-3.5 h-3.5 text-blue-600" />
           <span className="font-semibold">{pageSize}</span>
         </button>
-
-          {/* Manual Add Page Button */}
-          <button
-            id="toolbar-btn-page-break"
-            onClick={handleAddPage}
-            className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold transition shrink-0 shadow-2xs cursor-pointer"
-            title="Add New Page (نیا صفحہ شامل کریں)"
-          >
-            <FilePlus2 className="w-3.5 h-3.5 text-blue-600" />
-            <span>Add Page</span>
-          </button>
-
-          {/* Delete Page Button (when multi-page) */}
-          {pagesCount > 1 && (
-            <button
-              id="toolbar-btn-delete-page"
-              onClick={() => handleDeletePage()}
-              className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm font-semibold transition shrink-0 shadow-2xs cursor-pointer"
-              title="Delete Last Page (صفحہ حذف کریں)"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-600" />
-              <span>Delete Page</span>
-            </button>
-          )}
 
         {/* Utilities: Insert Image, Undo, Redo, Urdu Keyboard */}
         <div className="flex items-center gap-1 shrink-0">
@@ -2656,11 +2628,12 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                       key={`page-bg-${pageNumber}`}
                       id={`page-sheet-${pageNumber}`}
                       dir={direction}
-                      className="msword-page-sheet bg-white rounded-xs relative mb-10 overflow-hidden shrink-0 transition-shadow"
+                      className="msword-page-sheet rounded-xs relative mb-10 overflow-hidden shrink-0 transition-shadow"
                       style={{
                         direction: direction,
                         width: `${activeSheetDim.width}px`,
                         height: `${activeSheetDim.height}px`,
+                        backgroundColor: pageColor,
                         boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)'
                       }}
                     >
@@ -2738,7 +2711,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                                 style={{
                                   color: resolvedBorderColor(),
                                   borderColor: resolvedBorderColor(),
-                                  backgroundColor: '#ffffff'
+                                  backgroundColor: pageColor
                                 }}
                               >
                                 {renderPageNumberString(pageNumber, displayedPagesCount)}
@@ -2751,7 +2724,14 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                       {/* Fallback Page Number when border is turned off or in footer */}
                       {(!hasBorder || pageNumberPosition === 'footer') && showPageNumber && (
                         <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center pointer-events-none select-none z-10">
-                          <span className="text-[11px] font-mono text-gray-500 bg-white/90 px-3 py-0.5 rounded-full border border-gray-200 shadow-2xs font-semibold">
+                          <span
+                            className="text-[11px] font-mono px-3 py-0.5 rounded-full border shadow-2xs font-semibold"
+                            style={{
+                              backgroundColor: pageColor,
+                              color: isColorDark(pageColor) ? '#e2e8f0' : '#4b5563',
+                              borderColor: isColorDark(pageColor) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)'
+                            }}
+                          >
                             {renderPageNumberString(pageNumber, displayedPagesCount)}
                           </span>
                         </div>
@@ -3715,6 +3695,26 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         onClose={() => setIsPoetryModalOpen(false)}
         onInsertPoetry={handleInsertPoetry}
         onShowToast={onShowToast}
+      />
+
+      {/* 14. Page Canvas Background Color Modal (صفحہ کا پس منظر رنگ) */}
+      <PageColorModal
+        isOpen={isPageColorModalOpen}
+        onClose={() => setIsPageColorModalOpen(false)}
+        currentColor={pageColor}
+        onSelectColor={(color) => {
+          setPageColor(color);
+        }}
+        textColor={textColor}
+        onSetTextColor={(color) => {
+          setTextColor(color);
+          document.execCommand('foreColor', false, color);
+          onShowToast({
+            type: 'info',
+            title: 'متن کا رنگ تبدیل ہو گیا',
+            description: `Text color set to ${color} for contrast`
+          });
+        }}
       />
     </div>
   );

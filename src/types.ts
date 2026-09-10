@@ -22,6 +22,7 @@ export interface DocumentTemplate {
   defaultAlign: 'left' | 'center' | 'right' | 'justify';
   defaultLineHeight: string;
   hasBorder?: boolean;
+  pageColor?: string;
 }
 
 export interface SavedDocument {
@@ -36,6 +37,7 @@ export interface SavedDocument {
   textAlign: 'left' | 'center' | 'right' | 'justify';
   direction: 'rtl' | 'ltr';
   pageSize: string;
+  pageColor?: string;
   viewMode?: 'single' | 'dual';
   deviceId?: string;
   updatedAt: number;
