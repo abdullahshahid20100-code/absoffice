@@ -192,7 +192,33 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
     window.addEventListener('mouseup', onMouseUp);
   };
 
-  // Align image
+  // Preset sizes
+  const applyPresetWidth = (pct: number) => {
+    if (!selectedImage) return;
+    selectedImage.style.width = `${pct}%`;
+    selectedImage.style.height = 'auto';
+    selectedImage.style.maxWidth = '100%';
+    updateRect();
+    onUpdate();
+  };
+
+  // Step size change (چھوٹا یا بڑا کریں)
+  const handleStepSize = (deltaPct: number) => {
+    if (!selectedImage) return;
+    const currentW = selectedImage.style.width || '50%';
+    let currentPct = 50;
+    if (currentW.endsWith('%')) {
+      currentPct = parseInt(currentW, 10) || 50;
+    } else {
+      const parentSheet = selectedImage.closest('.msword-page-sheet, .page-sheet') as HTMLElement;
+      const maxWidth = parentSheet ? parentSheet.clientWidth - 96 : 700;
+      currentPct = Math.round(((selectedImage.offsetWidth || 300) / maxWidth) * 100);
+    }
+    const newPct = Math.max(10, Math.min(100, currentPct + deltaPct));
+    applyPresetWidth(newPct);
+  };
+
+  // Align image (بائیں، درمیان، یا دائیں جانب رکھیں)
   const setAlignment = (align: 'center' | 'left' | 'right') => {
     if (!selectedImage) return;
     setImageAlignment(align);
@@ -202,12 +228,21 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
     if (align === 'center') {
       selectedImage.style.marginLeft = 'auto';
       selectedImage.style.marginRight = 'auto';
+      if (selectedImage.parentElement && (selectedImage.parentElement.tagName === 'P' || selectedImage.parentElement.tagName === 'DIV')) {
+        selectedImage.parentElement.style.textAlign = 'center';
+      }
     } else if (align === 'left') {
       selectedImage.style.marginLeft = '0';
       selectedImage.style.marginRight = 'auto';
+      if (selectedImage.parentElement && (selectedImage.parentElement.tagName === 'P' || selectedImage.parentElement.tagName === 'DIV')) {
+        selectedImage.parentElement.style.textAlign = 'left';
+      }
     } else if (align === 'right') {
       selectedImage.style.marginLeft = 'auto';
       selectedImage.style.marginRight = '0';
+      if (selectedImage.parentElement && (selectedImage.parentElement.tagName === 'P' || selectedImage.parentElement.tagName === 'DIV')) {
+        selectedImage.parentElement.style.textAlign = 'right';
+      }
     }
     updateRect();
     onUpdate();
@@ -235,16 +270,6 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
     onUpdate();
   };
 
-  // Preset sizes
-  const applyPresetWidth = (pct: number) => {
-    if (!selectedImage) return;
-    selectedImage.style.width = `${pct}%`;
-    selectedImage.style.height = 'auto';
-    selectedImage.style.maxWidth = '100%';
-    updateRect();
-    onUpdate();
-  };
-
   if (!selectedImage || !rect) return null;
 
   return (
@@ -259,145 +284,176 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
       }}
     >
       {/* ----------------------------------------------------------------- */}
-      {/* CANVA PURPLE BOUNDING BOX (2px solid #8b5cf6)                     */}
+      {/* CANVA TEAL-THEME BOUNDING BOX (2px solid #005461)                 */}
       {/* ----------------------------------------------------------------- */}
-      <div className="absolute inset-0 border-2 border-[#8b5cf6] pointer-events-none rounded-xs shadow-xs" />
+      <div className="absolute inset-0 border-2 border-[#005461] pointer-events-none rounded-xs shadow-xs" />
 
       {/* ----------------------------------------------------------------- */}
-      {/* LIVE DIMENSION PILL (w: 1,638 h: 2,334) - Visible when Resizing   */}
+      {/* LIVE DIMENSION PILL - Visible when Resizing                        */}
       {/* ----------------------------------------------------------------- */}
       {(isResizing || liveSize) && (
         <div
-          className={`absolute left-1/2 -translate-x-1/2 -top-9 px-2.5 py-1 bg-gray-900/90 text-white font-mono text-[11px] font-semibold rounded-md shadow-xl backdrop-blur-xs border border-gray-700 pointer-events-none flex items-center gap-1.5 transition-opacity duration-150 ${
+          className={`absolute left-1/2 -translate-x-1/2 -top-9 px-2.5 py-1 bg-[#005461]/95 text-white font-mono text-[11px] font-semibold rounded-md shadow-xl backdrop-blur-xs border border-[#00b7b5]/50 pointer-events-none flex items-center gap-1.5 transition-opacity duration-150 ${
             isResizing ? 'opacity-100 scale-105' : 'opacity-85'
           }`}
         >
-          <span className="text-purple-300">w:</span>
-          <span>{liveSize?.width.toLocaleString()}</span>
-          <span className="text-gray-500">•</span>
-          <span className="text-purple-300">h:</span>
-          <span>{liveSize?.height.toLocaleString()}</span>
+          <span className="text-[#00b7b5]">w:</span>
+          <span>{liveSize?.width.toLocaleString()}px</span>
+          <span className="text-gray-300">•</span>
+          <span className="text-[#00b7b5]">h:</span>
+          <span>{liveSize?.height.toLocaleString()}px</span>
         </div>
       )}
 
       {/* ----------------------------------------------------------------- */}
-      {/* 4 CORNER HANDLES (Canva-style circular drag nodes)                */}
+      {/* 4 CORNER HANDLES (Teal-themed circular drag nodes)                */}
       {/* ----------------------------------------------------------------- */}
       {!isLocked && (
         <>
           {/* Top-Left */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 'tl')}
-            className="pointer-events-auto absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-[#8b5cf6] rounded-full cursor-nwse-resize shadow-md hover:scale-130 active:scale-130 active:bg-[#8b5cf6] transition-transform"
-            title="Resize (چھوٹا / بڑا کریں)"
+            className="pointer-events-auto absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-[#005461] rounded-full cursor-nwse-resize shadow-md hover:scale-130 active:scale-130 active:bg-[#005461] transition-transform"
+            title="Resize / چھوٹا یا بڑا کریں"
           />
 
           {/* Top-Right */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 'tr')}
-            className="pointer-events-auto absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-[#8b5cf6] rounded-full cursor-nesw-resize shadow-md hover:scale-130 active:scale-130 active:bg-[#8b5cf6] transition-transform"
-            title="Resize (چھوٹا / بڑا کریں)"
+            className="pointer-events-auto absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-[#005461] rounded-full cursor-nesw-resize shadow-md hover:scale-130 active:scale-130 active:bg-[#005461] transition-transform"
+            title="Resize / چھوٹا یا بڑا کریں"
           />
 
           {/* Bottom-Left */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 'bl')}
-            className="pointer-events-auto absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-[#8b5cf6] rounded-full cursor-nesw-resize shadow-md hover:scale-130 active:scale-130 active:bg-[#8b5cf6] transition-transform"
-            title="Resize (چھوٹا / بڑا کریں)"
+            className="pointer-events-auto absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-[#005461] rounded-full cursor-nesw-resize shadow-md hover:scale-130 active:scale-130 active:bg-[#005461] transition-transform"
+            title="Resize / چھوٹا یا بڑا کریں"
           />
 
-          {/* Bottom-Right (Main handle highlighted in user video) */}
+          {/* Bottom-Right (Primary prominent drag handle) */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 'br')}
-            className="pointer-events-auto absolute -bottom-2 -right-2 w-4 h-4 bg-[#8b5cf6] border-2 border-white rounded-full cursor-nwse-resize shadow-md ring-2 ring-[#8b5cf6]/40 hover:scale-135 active:scale-135 transition-transform"
-            title="Resize Image (تصویر کا سائز بدلیں)"
+            className="pointer-events-auto absolute -bottom-2.5 -right-2.5 w-5 h-5 bg-[#005461] border-2 border-white rounded-full cursor-nwse-resize shadow-md ring-2 ring-[#00b7b5]/50 hover:scale-135 active:scale-135 transition-transform"
+            title="Drag to Resize Image (تصویر کھینچ کر چھوٹی یا بڑی کریں)"
           />
 
           {/* --------------------------------------------------------------- */}
-          {/* 4 EDGE PILL HANDLES (Canva side resize bars)                     */}
+          {/* 4 EDGE PILL HANDLES                                             */}
           {/* --------------------------------------------------------------- */}
           {/* Top Edge */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 't')}
-            className="pointer-events-auto absolute -top-1 left-1/2 -translate-x-1/2 w-6 h-1.5 bg-white border border-[#8b5cf6] rounded-full cursor-ns-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-purple-100 transition-transform"
+            className="pointer-events-auto absolute -top-1 left-1/2 -translate-x-1/2 w-6 h-1.5 bg-white border border-[#005461] rounded-full cursor-ns-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-[#00b7b5]/20 transition-transform"
             title="Adjust Height"
           />
 
           {/* Bottom Edge */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 'b')}
-            className="pointer-events-auto absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-1.5 bg-white border border-[#8b5cf6] rounded-full cursor-ns-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-purple-100 transition-transform"
+            className="pointer-events-auto absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-1.5 bg-white border border-[#005461] rounded-full cursor-ns-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-[#00b7b5]/20 transition-transform"
             title="Adjust Height"
           />
 
           {/* Left Edge */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 'l')}
-            className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -left-1 w-1.5 h-6 bg-white border border-[#8b5cf6] rounded-full cursor-ew-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-purple-100 transition-transform"
+            className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -left-1 w-1.5 h-6 bg-white border border-[#005461] rounded-full cursor-ew-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-[#00b7b5]/20 transition-transform"
             title="Adjust Width"
           />
 
-          {/* Right Edge (Pill handle shown in user video at 00:05) */}
+          {/* Right Edge */}
           <div
             onMouseDown={(e) => handleResizeStart(e, 'r')}
-            className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -right-1 w-1.5 h-6 bg-white border border-[#8b5cf6] rounded-full cursor-ew-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-purple-100 transition-transform"
+            className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -right-1 w-1.5 h-6 bg-white border border-[#005461] rounded-full cursor-ew-resize shadow-xs hover:scale-120 active:scale-120 hover:bg-[#00b7b5]/20 transition-transform"
             title="Adjust Width (چوڑائی بدلیں)"
           />
         </>
       )}
 
       {/* ----------------------------------------------------------------- */}
-      {/* FLOATING CANVA ACTION BAR (Directly below image)                  */}
+      {/* FLOATING ACTION BAR (Themed directly below image)                 */}
       {/* ----------------------------------------------------------------- */}
       <div
-        className="pointer-events-auto absolute left-1/2 -translate-x-1/2 top-full mt-3 flex items-center gap-1 bg-white/95 backdrop-blur-md text-gray-700 px-2.5 py-1.5 rounded-xl shadow-xl border border-gray-200 z-40 text-xs animate-in fade-in zoom-in-95 duration-150"
+        className="pointer-events-auto absolute left-1/2 -translate-x-1/2 top-full mt-3 flex items-center gap-1.5 bg-white text-gray-800 px-3 py-2 rounded-2xl shadow-2xl border-2 border-[#005461] z-40 text-xs animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap"
       >
+        {/* Resize Stepper [-] [+] */}
+        <div className="flex items-center gap-1 pr-1.5 border-r border-[#018790]/20">
+          <button
+            type="button"
+            onClick={() => handleStepSize(-10)}
+            className="px-2 py-1 text-[11px] font-bold rounded-lg bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
+            title="چھوٹا کریں (Smaller -10%)"
+          >
+            <span>−</span>
+            <span>چھوٹا</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleStepSize(10)}
+            className="px-2 py-1 text-[11px] font-bold rounded-lg bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
+            title="بڑا کریں (Bigger +10%)"
+          >
+            <span>+</span>
+            <span>بڑا</span>
+          </button>
+        </div>
+
         {/* Quick Size Presets */}
-        <div className="flex items-center gap-0.5 pr-1.5 border-r border-gray-200">
-          {[30, 50, 75, 100].map((pct) => (
+        <div className="flex items-center gap-0.5 pr-1.5 border-r border-[#018790]/20">
+          {[25, 50, 75, 100].map((pct) => (
             <button
               key={pct}
               type="button"
               onClick={() => applyPresetWidth(pct)}
-              className="px-1.5 py-0.5 text-[10px] font-semibold rounded hover:bg-purple-50 hover:text-[#8b5cf6] transition text-gray-600"
-              title={`Set to ${pct}% width`}
+              className="px-1.5 py-1 text-[10px] font-bold rounded hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-600"
+              title={`سیٹ کریں ${pct}% چوڑائی`}
             >
               {pct}%
             </button>
           ))}
         </div>
 
-        {/* Alignment */}
-        <div className="flex items-center gap-0.5 pr-1.5 border-r border-gray-200">
+        {/* Alignment: Left (بائیں), Center (درمیان), Right (دائیں) */}
+        <div className="flex items-center gap-1 pr-1.5 border-r border-[#018790]/20">
           <button
             type="button"
             onClick={() => setAlignment('left')}
-            className={`p-1 rounded transition ${
-              imageAlignment === 'left' ? 'bg-purple-100 text-[#8b5cf6]' : 'hover:bg-gray-100 text-gray-600'
+            className={`px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+              imageAlignment === 'left'
+                ? 'bg-[#005461] text-white shadow-xs'
+                : 'bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700'
             }`}
-            title="Align Left (بائیں)"
+            title="بائیں جانب کریں (Move to Left Side)"
           >
             <AlignLeft className="w-3.5 h-3.5" />
+            <span>بائیں (Left)</span>
           </button>
           <button
             type="button"
             onClick={() => setAlignment('center')}
-            className={`p-1 rounded transition ${
-              imageAlignment === 'center' ? 'bg-purple-100 text-[#8b5cf6]' : 'hover:bg-gray-100 text-gray-600'
+            className={`px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+              imageAlignment === 'center'
+                ? 'bg-[#005461] text-white shadow-xs'
+                : 'bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700'
             }`}
-            title="Align Center (درمیان)"
+            title="درمیان میں کریں (Align Center)"
           >
             <AlignCenter className="w-3.5 h-3.5" />
+            <span>درمیان</span>
           </button>
           <button
             type="button"
             onClick={() => setAlignment('right')}
-            className={`p-1 rounded transition ${
-              imageAlignment === 'right' ? 'bg-purple-100 text-[#8b5cf6]' : 'hover:bg-gray-100 text-gray-600'
+            className={`px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+              imageAlignment === 'right'
+                ? 'bg-[#005461] text-white shadow-xs'
+                : 'bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700'
             }`}
-            title="Align Right (دائیں)"
+            title="دائیں جانب کریں (Align Right)"
           >
             <AlignRight className="w-3.5 h-3.5" />
+            <span>دائیں</span>
           </button>
         </div>
 
@@ -405,32 +461,36 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
         <button
           type="button"
           onClick={toggleCorners}
-          className={`px-1.5 py-1 text-[11px] font-medium rounded transition ${
-            imageRounded !== 'none' ? 'bg-purple-50 text-[#8b5cf6] font-semibold' : 'hover:bg-gray-100'
+          className={`px-2 py-1 text-[11px] font-semibold rounded-lg border transition ${
+            imageRounded !== 'none'
+              ? 'bg-[#00b7b5]/15 text-[#005461] border-[#018790]'
+              : 'bg-white border-[#018790]/25 hover:bg-gray-50 text-gray-600'
           }`}
-          title="Toggle Rounded Corners (گولائی)"
+          title="گولائی تبدیل کریں (Toggle Rounded Corners)"
         >
-          {imageRounded === 'none' ? 'Square' : imageRounded === 'md' ? 'Rounded' : 'Circle'}
+          {imageRounded === 'none' ? 'سیدھا' : imageRounded === 'md' ? 'گول' : 'دائرہ'}
         </button>
 
         {/* Shadow */}
         <button
           type="button"
           onClick={toggleShadow}
-          className={`px-1.5 py-1 text-[11px] font-medium rounded transition ${
-            imageShadow ? 'bg-purple-50 text-[#8b5cf6] font-semibold' : 'hover:bg-gray-100'
+          className={`px-2 py-1 text-[11px] font-semibold rounded-lg border transition ${
+            imageShadow
+              ? 'bg-[#00b7b5]/15 text-[#005461] border-[#018790]'
+              : 'bg-white border-[#018790]/25 hover:bg-gray-50 text-gray-600'
           }`}
-          title="Toggle Shadow (سایہ)"
+          title="سایہ آن یا آف کریں (Toggle Shadow)"
         >
-          Shadow
+          سایہ
         </button>
 
         {/* Lock / Unlock */}
         <button
           type="button"
           onClick={() => setIsLocked(!isLocked)}
-          className={`p-1 rounded transition ${
-            isLocked ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-100 text-gray-500'
+          className={`p-1.5 rounded-lg border transition ${
+            isLocked ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-white border-[#018790]/25 hover:bg-gray-50 text-gray-600'
           }`}
           title={isLocked ? 'Unlock Image' : 'Lock Image'}
         >
@@ -441,8 +501,8 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
         <button
           type="button"
           onClick={onDuplicate}
-          className="p-1 text-gray-600 hover:text-purple-700 hover:bg-purple-50 rounded transition"
-          title="Duplicate Image (کاپی کریں)"
+          className="p-1.5 text-gray-600 hover:text-[#005461] bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 rounded-lg transition"
+          title="تصویر کی کاپی بنائیں (Duplicate Image)"
         >
           <Copy className="w-3.5 h-3.5" />
         </button>
@@ -451,8 +511,8 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
         <button
           type="button"
           onClick={onDelete}
-          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition"
-          title="Delete Image (تصویر ڈیلیٹ کریں)"
+          className="p-1.5 text-red-600 hover:text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition"
+          title="تصویر حذف کریں (Delete Image)"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -461,8 +521,8 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
         <button
           type="button"
           onClick={onDeselect}
-          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition"
-          title="Deselect (بند کریں)"
+          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+          title="بند کریں (Deselect)"
         >
           <X className="w-3.5 h-3.5" />
         </button>

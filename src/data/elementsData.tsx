@@ -24,8 +24,12 @@ export interface ElementItem {
   renderPreview: (color: string, mode: ShapeStyleMode) => React.ReactNode;
 }
 
-// Curated colors for fast 1-click selection
+// Curated colors for fast 1-click selection (including theme palette)
 export const POPULAR_COLORS = [
+  { name: 'Deep Teal (Theme)', hex: '#005461' },
+  { name: 'Ocean Teal (Theme)', hex: '#018790' },
+  { name: 'Bright Turquoise (Theme)', hex: '#00b7b5' },
+  { name: 'Crisp Neutral', hex: '#f4f4f4' },
   { name: 'Black', hex: '#111827' },
   { name: 'Slate', hex: '#4b5563' },
   { name: 'Royal Blue', hex: '#1d4ed8' },
@@ -34,9 +38,7 @@ export const POPULAR_COLORS = [
   { name: 'Rose', hex: '#e11d48' },
   { name: 'Crimson Red', hex: '#dc2626' },
   { name: 'Emerald', hex: '#059669' },
-  { name: 'Teal', hex: '#0d9488' },
   { name: 'Amber Gold', hex: '#d97706' },
-  { name: 'Orange', hex: '#ea580c' },
   { name: 'Pure White', hex: '#ffffff' }
 ];
 

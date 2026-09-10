@@ -33,12 +33,12 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
   };
 
   return (
-    <section className="max-w-7xl mx-auto px-3 sm:px-8 mt-8 sm:mt-12 mb-16 sm:mb-20">
-      <div className="bg-white rounded-2xl p-4 sm:p-8 border border-gray-200/80 shadow-xs">
+    <section className="max-w-7xl mx-auto px-4 sm:px-8 mt-8 sm:mt-12 mb-16 sm:mb-20">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-slate-200/90 shadow-sm">
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 sm:pb-6 border-b border-gray-100 gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 sm:pb-6 border-b border-slate-100 gap-3">
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-50 text-[#3b5bfd] flex items-center justify-center border border-indigo-100/80 shadow-xs">
               <History className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
@@ -47,8 +47,8 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
                 <span className="text-xs sm:text-sm font-normal text-gray-500 hidden sm:inline">(حالیہ دستاویزات)</span>
               </h2>
             </div>
-            <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full ml-1 sm:ml-2" title="These documents are securely stored only on your browser and are private to your device.">
-              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-[#3b5bfd] bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full ml-1 sm:ml-2" title="These documents are securely stored only on your browser and are private to your device.">
+              <ShieldCheck className="w-3 h-3 text-[#3b5bfd]" />
               <span>This Device Only</span>
             </span>
           </div>
@@ -59,7 +59,7 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
                 id="btn-clear-all-projects"
                 type="button"
                 onClick={() => setIsClearModalOpen(true)}
-                className="text-xs sm:text-xs font-semibold text-gray-500 hover:text-red-600 px-2.5 py-1 rounded-lg hover:bg-red-50 transition flex items-center gap-1 cursor-pointer"
+                className="text-xs font-semibold text-gray-500 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition flex items-center gap-1 cursor-pointer"
                 title="Clear all saved documents on this browser"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -70,7 +70,7 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
             <button
               id="btn-view-all-templates"
               onClick={onOpenTemplates}
-              className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition ml-1"
+              className="text-xs sm:text-sm font-semibold text-[#3b5bfd] hover:text-[#2f5bf5] flex items-center gap-1 hover:underline transition ml-1 cursor-pointer"
             >
               <span>Templates</span>
               <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -78,31 +78,31 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
           </div>
         </div>
 
-        {/* Projects List / Grid: 2 cards per row on mobile, 2 on tablet, 3 on desktop */}
+        {/* Projects List / Grid */}
         {documents.length === 0 ? (
-          <div className="text-center py-10 sm:py-12">
-            <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-2 sm:mb-3" />
+          <div className="text-center py-12 sm:py-16">
+            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-600 font-medium text-sm sm:text-base">No saved documents yet on this browser (کوئی فائل نہیں ہے)</p>
             <p className="text-gray-400 text-xs mt-1">Pick a template above or click "Create Design" to start writing.</p>
           </div>
         ) : (
-          <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-5">
+          <div className="mt-5 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                className="group border border-gray-200 hover:border-blue-400 rounded-xl p-3 sm:p-5 bg-white hover:bg-blue-50/20 transition-all duration-200 shadow-2xs hover:shadow-md flex flex-col justify-between"
+                className="group border border-slate-200/90 hover:border-[#3b5bfd] rounded-2xl p-4 sm:p-5 bg-white hover:bg-slate-50/50 transition-all duration-200 shadow-2xs hover:shadow-md flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-1.5 sm:gap-3">
-                    <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden min-w-0">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                        <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <div className="flex items-start justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-indigo-50 text-[#3b5bfd] flex items-center justify-center shrink-0 border border-indigo-100">
+                        <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </div>
-                      <h3 className="font-bold text-gray-900 truncate text-xs sm:text-base group-hover:text-blue-600 transition" title={doc.title}>
+                      <h3 className="font-bold text-gray-900 truncate text-xs sm:text-base group-hover:text-[#3b5bfd] transition" title={doc.title}>
                         {doc.title}
                       </h3>
                     </div>
-                    <span className="text-[9px] sm:text-[11px] font-medium bg-gray-100 text-gray-600 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0">
+                    <span className="text-[9px] sm:text-[11px] font-semibold bg-slate-100 text-[#3b5bfd] px-2 py-0.5 rounded-full shrink-0 border border-slate-200">
                       {doc.pageSize || 'A4'}
                     </span>
                   </div>
@@ -110,14 +110,14 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
                   {/* Snippet preview */}
                   <div
                     onClick={() => onOpenDoc(doc)}
-                    className="cursor-pointer mt-2 sm:mt-3 p-2 sm:p-3 bg-gray-50/80 rounded-lg text-[11px] sm:text-xs text-gray-600 line-clamp-2 sm:line-clamp-3 font-nastaliq leading-relaxed border border-gray-100/80"
+                    className="cursor-pointer mt-3 p-2.5 sm:p-3 bg-slate-50 hover:bg-slate-100/70 rounded-xl text-[11px] sm:text-xs text-gray-600 line-clamp-2 sm:line-clamp-3 font-nastaliq leading-relaxed border border-slate-200/70"
                     dangerouslySetInnerHTML={{
                       __html: doc.content.replace(/<[^>]*>?/gm, ' ').substring(0, 140) + '...'
                     }}
                   />
                 </div>
 
-                <div className="mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500">
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500">
                   <div className="flex items-center gap-1.5 sm:gap-2 truncate">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-gray-400" />
@@ -127,12 +127,12 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
                     <span className="hidden sm:inline">{doc.wordCount || 0} words</span>
                   </div>
 
-                  <div className="flex items-center gap-0.5 sm:gap-1 opacity-90 group-hover:opacity-100 transition justify-end">
+                  <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition justify-end">
                     <button
                       id={`edit-doc-${doc.id}`}
                       onClick={() => onOpenDoc(doc)}
                       title="Open in Editor"
-                      className="p-1 sm:p-1.5 hover:bg-blue-100 hover:text-blue-700 rounded-md transition text-gray-600 cursor-pointer"
+                      className="p-1.5 hover:bg-indigo-50 hover:text-[#3b5bfd] rounded-lg transition text-gray-600 cursor-pointer"
                     >
                       <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </button>
@@ -140,7 +140,7 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
                       id={`duplicate-doc-${doc.id}`}
                       onClick={() => onDuplicateDoc(doc)}
                       title="Duplicate"
-                      className="p-1 sm:p-1.5 hover:bg-gray-100 hover:text-gray-800 rounded-md transition text-gray-600 cursor-pointer"
+                      className="p-1.5 hover:bg-slate-100 hover:text-gray-800 rounded-lg transition text-gray-600 cursor-pointer"
                     >
                       <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </button>
@@ -148,7 +148,7 @@ export const RecentProjects: React.FC<RecentProjectsProps> = ({
                       id={`delete-doc-${doc.id}`}
                       onClick={() => onDeleteDoc(doc.id)}
                       title="Delete"
-                      className="p-1 sm:p-1.5 hover:bg-red-100 hover:text-red-600 rounded-md transition text-gray-600 cursor-pointer"
+                      className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg transition text-gray-600 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </button>

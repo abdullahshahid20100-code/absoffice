@@ -189,7 +189,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-[#f8fafc] text-gray-900 selection:bg-[#3b5bfd] selection:text-white">
       {/* Toast Notification Provider */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
@@ -201,13 +201,13 @@ export default function App() {
             onOpenTemplates={() => setIsTemplateModalOpen(true)}
           />
 
-          {/* Hero Section with Blue Gradient & Urdu Calligraphy */}
+          {/* Hero Section with Royal Blue Gradient & Urdu Calligraphy */}
           <HeroSection
             onOpenTemplates={() => setIsTemplateModalOpen(true)}
             activeView="home"
           />
 
-          {/* 5 Explore Templates Cards */}
+          {/* 6 Explore Templates Cards */}
           <TemplateCards
             onSelectTemplate={handleSelectTemplate}
             onOpenCustomSize={() => setIsCustomSizeModalOpen(true)}
@@ -224,20 +224,20 @@ export default function App() {
           />
 
           {/* Footer */}
-          <footer className="mt-auto border-t border-gray-200 bg-white py-5 sm:py-6 px-4 text-center">
+          <footer className="mt-auto border-t border-slate-200/80 bg-white py-5 sm:py-6 px-4 text-center">
             <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-6 h-6 rounded-lg bg-[#3b5bfd] flex items-center justify-center text-white text-xs font-bold shadow-xs">
                   ABS
                 </div>
                 <span className="font-bold text-gray-900">ABS Office</span>
-                <span className="text-xs bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded border border-blue-200">
+                <span className="text-[10px] uppercase font-bold bg-[#fff1e7] text-[#c2410c] px-2 py-0.5 rounded-md border border-[#fed7aa]/70 tracking-wider">
                   Notepad
                 </span>
               </div>
 
               <p className="text-sm font-medium text-gray-700">
-                Develop by <span className="font-bold text-blue-700">Abdullah Shahid</span>
+                Develop by <span className="font-bold text-[#3b5bfd]">Abdullah Shahid</span>
               </p>
             </div>
           </footer>

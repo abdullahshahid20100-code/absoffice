@@ -177,7 +177,7 @@ export const CustomSizeModal: React.FC<CustomSizeModalProps> = ({
             <button
               id="btn-apply-custom-size"
               onClick={handleApply}
-              className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-600/30 transition"
+              className="px-5 py-2 text-sm font-semibold text-white bg-[#3b5bfd] hover:bg-[#2f5bf5] active:scale-98 rounded-xl shadow-sm shadow-[#3b5bfd]/30 transition cursor-pointer"
             >
               Create Document
             </button>

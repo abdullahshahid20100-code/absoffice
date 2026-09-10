@@ -558,6 +558,12 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   ) => {
     if (!selectedImage) return;
 
+    setImageWidthPercent(widthPct);
+    setImageAlignment(align);
+    setImageRounded(rounded);
+    setImageShadow(shadow);
+    setImageBorder(border);
+
     selectedImage.style.width = `${widthPct}%`;
     selectedImage.style.maxWidth = '100%';
     selectedImage.style.height = 'auto';
@@ -567,10 +573,14 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       selectedImage.style.float = 'left';
       selectedImage.style.display = 'inline-block';
       selectedImage.style.margin = '8px 16px 8px 0';
+      selectedImage.style.marginLeft = '0px';
+      selectedImage.style.marginRight = '16px';
     } else if (align === 'float-right') {
       selectedImage.style.float = 'right';
       selectedImage.style.display = 'inline-block';
       selectedImage.style.margin = '8px 0 8px 16px';
+      selectedImage.style.marginLeft = '16px';
+      selectedImage.style.marginRight = '0px';
     } else if (align === 'center') {
       selectedImage.style.float = 'none';
       selectedImage.style.display = 'block';
@@ -578,6 +588,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       selectedImage.style.marginRight = 'auto';
       selectedImage.style.marginTop = '12px';
       selectedImage.style.marginBottom = '12px';
+      if (selectedImage.parentElement && (selectedImage.parentElement.tagName === 'P' || selectedImage.parentElement.tagName === 'DIV')) {
+        selectedImage.parentElement.style.textAlign = 'center';
+      }
     } else if (align === 'left') {
       selectedImage.style.float = 'none';
       selectedImage.style.display = 'block';
@@ -585,6 +598,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       selectedImage.style.marginRight = 'auto';
       selectedImage.style.marginTop = '12px';
       selectedImage.style.marginBottom = '12px';
+      if (selectedImage.parentElement && (selectedImage.parentElement.tagName === 'P' || selectedImage.parentElement.tagName === 'DIV')) {
+        selectedImage.parentElement.style.textAlign = 'left';
+      }
     } else if (align === 'right') {
       selectedImage.style.float = 'none';
       selectedImage.style.display = 'block';
@@ -592,6 +608,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       selectedImage.style.marginRight = '0';
       selectedImage.style.marginTop = '12px';
       selectedImage.style.marginBottom = '12px';
+      if (selectedImage.parentElement && (selectedImage.parentElement.tagName === 'P' || selectedImage.parentElement.tagName === 'DIV')) {
+        selectedImage.parentElement.style.textAlign = 'right';
+      }
     }
 
     // Border Radius
@@ -605,21 +624,43 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     selectedImage.style.boxShadow = shadow ? '0 4px 12px rgba(0,0,0,0.15)' : 'none';
 
     // Border
-    selectedImage.style.border = border ? '2px solid #cbd5e1' : 'none';
+    selectedImage.style.border = border ? '2px solid #3b5bfd' : 'none';
 
     recalculatePagination();
+  };
+
+  const handleImageWidthChange = (widthPct: number) => {
+    const clamped = Math.max(10, Math.min(100, widthPct));
+    applyImageStyles(clamped, imageAlignment, imageRounded, imageShadow, imageBorder);
+  };
+
+  const handleImageAlignmentChange = (align: 'left' | 'center' | 'right' | 'float-left' | 'float-right') => {
+    applyImageStyles(imageWidthPercent, align, imageRounded, imageShadow, imageBorder);
+  };
+
+  const handleImageRoundedChange = (rounded: 'none' | 'sm' | 'md' | 'lg' | 'full') => {
+    applyImageStyles(imageWidthPercent, imageAlignment, rounded, imageShadow, imageBorder);
+  };
+
+  const handleToggleImageShadow = () => {
+    applyImageStyles(imageWidthPercent, imageAlignment, imageRounded, !imageShadow, imageBorder);
+  };
+
+  const handleToggleImageBorder = () => {
+    applyImageStyles(imageWidthPercent, imageAlignment, imageRounded, imageShadow, !imageBorder);
   };
 
   // Delete selected image
   const handleDeleteSelectedImage = () => {
     if (selectedImage) {
+      selectedImage.style.outline = 'none';
       selectedImage.remove();
       setSelectedImage(null);
       recalculatePagination();
       onShowToast({
         type: 'info',
-        title: 'Image Removed',
-        description: 'Image deleted from document.'
+        title: 'تصویر ڈیلیٹ ہو گئی',
+        description: 'تصویر دستاویز سے ہٹا دی گئی۔'
       });
     }
   };
@@ -1292,7 +1333,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     });
   };
 
-  // Image insertion with default centered format and instant selection
+  // Image insertion with default LEFT alignment and instant selection
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1301,13 +1342,13 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         const url = event.target?.result as string;
         if (url && editorRef.current) {
           editorRef.current.focus();
-          const imgHtml = `<img src="${url}" style="display: block; margin: 16px auto; width: 60%; max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer;" alt="User Image" />`;
+          const imgHtml = `<p style="text-align: left; margin: 12px 0; clear: both;"><img src="${url}" style="display: block; margin: 12px auto 12px 0; width: 50%; max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer;" alt="User Image" /></p>`;
           document.execCommand('insertHTML', false, imgHtml);
           
           onShowToast({
             type: 'success',
-            title: 'Image Inserted Successfully',
-            description: 'Click on the image to resize or change position.'
+            title: 'تصویر شامل ہو گئی (Image Inserted)',
+            description: 'تصویر بائیں جانب شامل ہو گئی ہے۔ آپ اوپر والے کنٹرولز یا سائیڈ بار سے اسے چھوٹا یا بڑا کر سکتے ہیں۔'
           });
 
           setTimeout(() => {
@@ -1318,8 +1359,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             if (images && images.length > 0) {
               const lastImg = images[images.length - 1] as HTMLImageElement;
               setSelectedImage(lastImg);
-              setImageWidthPercent(60);
-              setImageAlignment('center');
+              setImageWidthPercent(50);
+              setImageAlignment('left');
+              lastImg.style.outline = '2px solid #3b5bfd';
+              lastImg.style.outlineOffset = '2px';
             }
           }, 100);
         }
@@ -2278,6 +2321,23 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           pageSize={pageSize}
           onUndo={() => executeCommand('undo')}
           onRedo={() => executeCommand('redo')}
+          selectedImage={selectedImage}
+          imageWidthPercent={imageWidthPercent}
+          imageAlignment={imageAlignment}
+          imageRounded={imageRounded}
+          imageShadow={imageShadow}
+          imageBorder={imageBorder}
+          onUpdateImageWidth={handleImageWidthChange}
+          onUpdateImageAlignment={handleImageAlignmentChange}
+          onUpdateImageRounded={handleImageRoundedChange}
+          onToggleImageShadow={handleToggleImageShadow}
+          onToggleImageBorder={handleToggleImageBorder}
+          onDeleteSelectedImage={handleDeleteSelectedImage}
+          onDuplicateSelectedImage={handleDuplicateSelectedImage}
+          onDeselectImage={() => {
+            if (selectedImage) selectedImage.style.outline = 'none';
+            setSelectedImage(null);
+          }}
         />
 
         {/* Center Document Canvas Workspace */}
@@ -2300,6 +2360,270 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               recalculatePagination();
             }}
           />
+
+          {/* Sticky Top Image Inspector Panel (Quick Access for Resize & Alignment) */}
+          {selectedImage && (
+            <div
+              id="image-inspector-panel"
+              className="sticky top-2 z-40 mx-auto max-w-2xl w-[96%] bg-white border-2 border-[#3b5bfd] shadow-2xl rounded-2xl p-3 text-xs text-gray-800 backdrop-blur-md animate-in slide-in-from-top-2 duration-150 transition-all flex flex-col gap-2.5 mb-4 no-print"
+            >
+              {/* Header row: title, image status badge, and quick actions */}
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-[#3b5bfd] text-white flex items-center justify-center shadow-xs">
+                    <ImageIcon className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold text-gray-900 text-xs sm:text-sm">
+                    تصویر کے کنٹرولز (Image Controls)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-[#3b5bfd] font-bold font-mono text-[11px] border border-indigo-200">
+                    سائز: {imageWidthPercent}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleDuplicateSelectedImage}
+                    className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-indigo-50 text-gray-700 hover:text-[#3b5bfd] font-medium text-[11px] border border-slate-200 flex items-center gap-1 transition cursor-pointer"
+                    title="تصویر کی کاپی بنائیں (Duplicate)"
+                  >
+                    <Copy className="w-3 h-3 text-[#3b5bfd]" />
+                    <span>کاپی</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelectedImage}
+                    className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 font-medium text-[11px] border border-red-200 flex items-center gap-1 transition cursor-pointer"
+                    title="تصویر حذف کریں (Delete)"
+                  >
+                    <Trash2 className="w-3 h-3 text-red-600" />
+                    <span>حذف</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectedImage.style.outline = 'none';
+                      setSelectedImage(null);
+                    }}
+                    className="p-1 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer"
+                    title="بند کریں (Deselect)"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Controls Grid: 1. Size (چھوٹا / بڑا کریں) & 2. Alignment (بائیں / درمیان / دائیں) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 1. Size Controls (چھوٹا / بڑا کریں) */}
+                <div className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-800 text-[11px]">
+                      سائز چھوٹا / بڑا کریں (Resize Image):
+                    </span>
+                    <span className="text-[10px] text-[#3b5bfd] font-bold font-mono">
+                      {imageWidthPercent}%
+                    </span>
+                  </div>
+
+                  {/* Stepper + Slider */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleImageWidthChange(imageWidthPercent - 5)}
+                      className="w-7 h-7 rounded-lg bg-white hover:bg-indigo-50 hover:text-[#3b5bfd] border border-slate-200 flex items-center justify-center text-gray-700 font-bold transition active:scale-95 shrink-0 cursor-pointer"
+                      title="چھوٹا کریں (Smaller -5%)"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <input
+                      type="range"
+                      min={15}
+                      max={100}
+                      step={5}
+                      value={imageWidthPercent}
+                      onChange={(e) => handleImageWidthChange(parseInt(e.target.value, 10))}
+                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#3b5bfd]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleImageWidthChange(imageWidthPercent + 5)}
+                      className="w-7 h-7 rounded-lg bg-white hover:bg-indigo-50 hover:text-[#3b5bfd] border border-slate-200 flex items-center justify-center text-gray-700 font-bold transition active:scale-95 shrink-0 cursor-pointer"
+                      title="بڑا کریں (Bigger +5%)"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Quick Size Presets */}
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] text-gray-500">فوری:</span>
+                    {[
+                      { pct: 25, label: '25% چھوٹا' },
+                      { pct: 50, label: '50% آدھا' },
+                      { pct: 75, label: '75% بڑا' },
+                      { pct: 100, label: '100% پورا' }
+                    ].map((preset) => (
+                      <button
+                        key={preset.pct}
+                        type="button"
+                        onClick={() => handleImageWidthChange(preset.pct)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition cursor-pointer ${
+                          imageWidthPercent === preset.pct
+                            ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] shadow-2xs'
+                            : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50 hover:text-[#3b5bfd]'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Alignment Controls (بائیں جانب / درمیان / دائیں جانب) */}
+                <div className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-800 text-[11px]">
+                      مقام و الائنمنٹ (Left / Center / Right):
+                    </span>
+                    <span className="text-[10px] text-[#3b5bfd] font-semibold">
+                      {imageAlignment === 'left' ? 'بائیں جانب (Left)' : imageAlignment === 'center' ? 'درمیان (Center)' : imageAlignment === 'right' ? 'دائیں جانب (Right)' : imageAlignment === 'float-left' ? 'بائیں بہاؤ' : 'دائیں بہاؤ'}
+                    </span>
+                  </div>
+
+                  {/* Alignment Buttons */}
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleImageAlignmentChange('left')}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border flex items-center justify-center gap-1 transition cursor-pointer ${
+                        imageAlignment === 'left'
+                          ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] shadow-xs'
+                          : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50 hover:text-[#3b5bfd]'
+                      }`}
+                      title="بائیں جانب لے جائیں (Align Left - Move to Left Side)"
+                    >
+                      <AlignLeft className="w-3.5 h-3.5" />
+                      <span>بائیں (Left)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleImageAlignmentChange('center')}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border flex items-center justify-center gap-1 transition cursor-pointer ${
+                        imageAlignment === 'center'
+                          ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] shadow-xs'
+                          : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50 hover:text-[#3b5bfd]'
+                      }`}
+                      title="درمیان میں رکھیں (Align Center)"
+                    >
+                      <AlignCenter className="w-3.5 h-3.5" />
+                      <span>درمیان</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleImageAlignmentChange('right')}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border flex items-center justify-center gap-1 transition cursor-pointer ${
+                        imageAlignment === 'right'
+                          ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] shadow-xs'
+                          : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50 hover:text-[#3b5bfd]'
+                      }`}
+                      title="دائیں جانب رکھیں (Align Right)"
+                    >
+                      <AlignRight className="w-3.5 h-3.5" />
+                      <span>دائیں</span>
+                    </button>
+                  </div>
+
+                  {/* Text-wrap / Float Options */}
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] text-gray-500">بہاؤ:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleImageAlignmentChange('float-left')}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition cursor-pointer ${
+                        imageAlignment === 'float-left'
+                          ? 'bg-[#3b5bfd] text-white border-[#3b5bfd]'
+                          : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50'
+                      }`}
+                      title="متن تصویر کے دائیں جانب بہے گا (Float Left)"
+                    >
+                      متن بائیں بہاؤ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleImageAlignmentChange('float-right')}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition cursor-pointer ${
+                        imageAlignment === 'float-right'
+                          ? 'bg-[#3b5bfd] text-white border-[#3b5bfd]'
+                          : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50'
+                      }`}
+                      title="متن تصویر کے بائیں جانب بہے گا (Float Right)"
+                    >
+                      متن دائیں بہاؤ
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Style & Effects: Corners & Shadow */}
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-gray-600 font-semibold">کونے:</span>
+                  {([
+                    { id: 'none', label: 'سیدھے' },
+                    { id: 'sm', label: 'ہلکے' },
+                    { id: 'md', label: 'معیاری' },
+                    { id: 'lg', label: 'گول' },
+                    { id: 'full', label: 'دائرہ' }
+                  ] as const).map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => handleImageRoundedChange(r.id)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium border transition cursor-pointer ${
+                        imageRounded === r.id
+                          ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] font-bold'
+                          : 'bg-white text-gray-700 border-slate-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleToggleImageShadow}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer ${
+                      imageShadow
+                        ? 'bg-[#3b5bfd] text-white border-[#3b5bfd]'
+                        : 'bg-white text-gray-700 border-slate-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>سایہ:</span>
+                    <span>{imageShadow ? 'آن' : 'بند'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleImageBorder}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer ${
+                      imageBorder
+                        ? 'bg-[#3b5bfd] text-white border-[#3b5bfd]'
+                        : 'bg-white text-gray-700 border-slate-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>بارڈر:</span>
+                    <span>{imageBorder ? 'آن' : 'بند'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Floating Page Status & Zoom Controls with Quick Add Page and View Mode */}
           {(() => {

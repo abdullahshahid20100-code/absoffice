@@ -10,6 +10,7 @@ import {
   Keyboard,
   X,
   Plus,
+  Minus,
   Sparkles,
   Search,
   Check,
@@ -20,7 +21,13 @@ import {
   Sliders,
   Maximize2,
   Paintbrush,
-  CheckCircle2
+  CheckCircle2,
+  Image as ImageIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Trash2,
+  Copy
 } from 'lucide-react';
 import { TEMPLATES } from '../data/templates';
 import { DocumentTemplate } from '../types';
@@ -70,6 +77,20 @@ interface CanvaSidebarProps {
   pageSize: string;
   onUndo: () => void;
   onRedo: () => void;
+  selectedImage?: HTMLImageElement | null;
+  imageWidthPercent?: number;
+  imageAlignment?: 'left' | 'center' | 'right' | 'float-left' | 'float-right';
+  imageRounded?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+  imageShadow?: boolean;
+  imageBorder?: boolean;
+  onUpdateImageWidth?: (pct: number) => void;
+  onUpdateImageAlignment?: (align: 'left' | 'center' | 'right' | 'float-left' | 'float-right') => void;
+  onUpdateImageRounded?: (rounded: 'none' | 'sm' | 'md' | 'lg' | 'full') => void;
+  onToggleImageShadow?: () => void;
+  onToggleImageBorder?: () => void;
+  onDeleteSelectedImage?: () => void;
+  onDuplicateSelectedImage?: () => void;
+  onDeselectImage?: () => void;
 }
 
 // Popular Islamic & Literary Emblems and Calligraphy Symbols
@@ -139,12 +160,26 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
   pagesCount,
   pageSize,
   onUndo,
-  onRedo
+  onRedo,
+  selectedImage,
+  imageWidthPercent = 50,
+  imageAlignment = 'left',
+  imageRounded = 'md',
+  imageShadow = true,
+  imageBorder = false,
+  onUpdateImageWidth,
+  onUpdateImageAlignment,
+  onUpdateImageRounded,
+  onToggleImageShadow,
+  onToggleImageBorder,
+  onDeleteSelectedImage,
+  onDuplicateSelectedImage,
+  onDeselectImage
 }) => {
   const [templateSearch, setTemplateSearch] = useState('');
   const [elementSearch, setElementSearch] = useState('');
   const [elementCategory, setElementCategory] = useState<ElementCategory>('all');
-  const [elementColor, setElementColor] = useState<string>('#7c3aed');
+  const [elementColor, setElementColor] = useState<string>('#3b5bfd');
   const [elementStyleMode, setElementStyleMode] = useState<ShapeStyleMode>('fill');
   const [recentlyInsertedId, setRecentlyInsertedId] = useState<string | null>(null);
 
@@ -191,11 +226,11 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
   return (
     <aside className="relative flex shrink-0 z-30 select-none no-print h-full">
       {/* ---------------------------------------------------- */}
-      {/* 1. VERTICAL LEFT ICON BAR (Canva Brand Dark/Light)   */}
+      {/* 1. VERTICAL LEFT ICON BAR (Theme Styled)             */}
       {/* ---------------------------------------------------- */}
       <div
         id="canva-sidebar-icon-dock"
-        className="w-18 bg-white border-r border-gray-200 flex flex-col items-center py-2 h-full z-40 overflow-y-auto shrink-0 shadow-2xs"
+        className="w-18 bg-white border-r border-slate-200 flex flex-col items-center py-2 h-full z-40 overflow-y-auto shrink-0 shadow-2xs"
       >
         {/* Templates Tab */}
         <button
@@ -204,8 +239,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
           onClick={() => handleTabClick('templates')}
           className={`w-full py-3 px-1 flex flex-col items-center justify-center gap-1.5 text-center transition cursor-pointer relative group ${
             activeTab === 'templates'
-              ? 'bg-cyan-50 text-[#00838f] font-semibold border-l-4 border-[#00838f]'
-              : 'text-gray-600 hover:text-[#00838f] hover:bg-gray-50'
+              ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
+              : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
           title="Design Templates (ڈیزائن ٹیمپلیٹس)"
         >
@@ -220,8 +255,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
           onClick={() => handleTabClick('elements')}
           className={`w-full py-3 px-1 flex flex-col items-center justify-center gap-1.5 text-center transition cursor-pointer relative group ${
             activeTab === 'elements'
-              ? 'bg-cyan-50 text-[#00838f] font-semibold border-l-4 border-[#00838f]'
-              : 'text-gray-600 hover:text-[#00838f] hover:bg-gray-50'
+              ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
+              : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
           title="Elements & Islamic Symbols (عناصر و علامات)"
         >
@@ -236,8 +271,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
           onClick={() => handleTabClick('text')}
           className={`w-full py-3 px-1 flex flex-col items-center justify-center gap-1.5 text-center transition cursor-pointer relative group ${
             activeTab === 'text'
-              ? 'bg-cyan-50 text-[#00838f] font-semibold border-l-4 border-[#00838f]'
-              : 'text-gray-600 hover:text-[#00838f] hover:bg-gray-50'
+              ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
+              : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
           title="Text & Headings (متن و خطاطی)"
         >
@@ -245,15 +280,15 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
           <span className="text-[11px] tracking-tight leading-tight">Text</span>
         </button>
 
-        {/* Poetry Studio Tab (Brand / Poetry with gold crown like Canva screenshot) */}
+        {/* Poetry Studio Tab */}
         <button
           id="canva-tab-poetry"
           type="button"
           onClick={() => handleTabClick('poetry')}
           className={`w-full py-3 px-1 flex flex-col items-center justify-center gap-1.5 text-center transition cursor-pointer relative group ${
             activeTab === 'poetry'
-              ? 'bg-cyan-50 text-[#00838f] font-semibold border-l-4 border-[#00838f]'
-              : 'text-gray-600 hover:text-[#00838f] hover:bg-gray-50'
+              ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
+              : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
           title="Poetry Studio (شاعری اسٹوڈیو)"
         >
@@ -269,8 +304,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
           onClick={() => handleTabClick('uploads')}
           className={`w-full py-3 px-1 flex flex-col items-center justify-center gap-1.5 text-center transition cursor-pointer relative group ${
             activeTab === 'uploads'
-              ? 'bg-cyan-50 text-[#00838f] font-semibold border-l-4 border-[#00838f]'
-              : 'text-gray-600 hover:text-[#00838f] hover:bg-gray-50'
+              ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
+              : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
           title="Uploads & Images (تصاویر)"
         >
@@ -285,8 +320,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
           onClick={() => handleTabClick('tools')}
           className={`w-full py-3 px-1 flex flex-col items-center justify-center gap-1.5 text-center transition cursor-pointer relative group ${
             activeTab === 'tools'
-              ? 'bg-cyan-50 text-[#00838f] font-semibold border-l-4 border-[#00838f]'
-              : 'text-gray-600 hover:text-[#00838f] hover:bg-gray-50'
+              ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
+              : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
           title="Tools & Keyboard (اوزار و کی بورڈ)"
         >
@@ -301,8 +336,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
           onClick={() => handleTabClick('page')}
           className={`w-full py-3 px-1 flex flex-col items-center justify-center gap-1.5 text-center transition cursor-pointer relative group ${
             activeTab === 'page'
-              ? 'bg-cyan-50 text-[#00838f] font-semibold border-l-4 border-[#00838f]'
-              : 'text-gray-600 hover:text-[#00838f] hover:bg-gray-50'
+              ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
+              : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
           title="Page & Frame Design (صفحہ و فریم)"
         >
@@ -317,18 +352,18 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
       {activeTab && (
         <div
           id="canva-sidebar-drawer"
-          className="w-80 sm:w-[350px] bg-white border-r border-gray-200 shadow-2xl flex flex-col h-full overflow-hidden animate-in slide-in-from-left duration-200 z-30"
+          className="w-80 sm:w-[350px] bg-white border-r border-slate-200 shadow-2xl flex flex-col h-full overflow-hidden animate-in slide-in-from-left duration-200 z-30"
         >
           {/* Drawer Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/90 shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 shrink-0">
             <div className="flex items-center gap-2">
-              {activeTab === 'templates' && <LayoutTemplate className="w-4 h-4 text-cyan-600" />}
-              {activeTab === 'elements' && <Shapes className="w-4 h-4 text-purple-600" />}
-              {activeTab === 'text' && <Type className="w-4 h-4 text-blue-600" />}
-              {activeTab === 'poetry' && <Feather className="w-4 h-4 text-rose-600" />}
-              {activeTab === 'uploads' && <UploadCloud className="w-4 h-4 text-indigo-600" />}
-              {activeTab === 'tools' && <Wrench className="w-4 h-4 text-amber-600" />}
-              {activeTab === 'page' && <Palette className="w-4 h-4 text-emerald-600" />}
+              {activeTab === 'templates' && <LayoutTemplate className="w-4 h-4 text-[#3b5bfd]" />}
+              {activeTab === 'elements' && <Shapes className="w-4 h-4 text-[#3b5bfd]" />}
+              {activeTab === 'text' && <Type className="w-4 h-4 text-[#3b5bfd]" />}
+              {activeTab === 'poetry' && <Feather className="w-4 h-4 text-[#3b5bfd]" />}
+              {activeTab === 'uploads' && <UploadCloud className="w-4 h-4 text-[#3b5bfd]" />}
+              {activeTab === 'tools' && <Wrench className="w-4 h-4 text-[#3b5bfd]" />}
+              {activeTab === 'page' && <Palette className="w-4 h-4 text-[#3b5bfd]" />}
               <span className="font-bold text-gray-900 text-sm">
                 {activeTab === 'templates' && 'Templates (ٹیمپلیٹس)'}
                 {activeTab === 'elements' && 'Elements & Symbols (عناصر)'}
@@ -341,7 +376,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
             </div>
             <button
               onClick={() => setActiveTab(null)}
-              className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
+              className="p-1 text-gray-400 hover:text-gray-700 hover:bg-slate-200/60 rounded-lg transition cursor-pointer"
               title="Close Drawer"
             >
               <X className="w-4 h-4" />
@@ -363,7 +398,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     value={templateSearch}
                     onChange={(e) => setTemplateSearch(e.target.value)}
                     placeholder="Search templates / ٹیمپلیٹ تلاش کریں..."
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                    className="w-full bg-[#f4f4f4]/60 border border-[#018790]/20 rounded-xl pl-9 pr-3 py-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#00b7b5]/40 transition"
                   />
                 </div>
 
@@ -376,20 +411,20 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     <div
                       key={t.id}
                       onClick={() => onApplyTemplate(t)}
-                      className="group p-3 rounded-xl border border-gray-200 hover:border-cyan-500 hover:shadow-md transition cursor-pointer bg-white flex flex-col justify-between"
+                      className="group p-3 rounded-xl border border-[#018790]/20 hover:border-[#018790] hover:shadow-md transition cursor-pointer bg-white flex flex-col justify-between"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="font-bold text-xs text-gray-900 group-hover:text-cyan-700 transition">
+                        <div className="font-bold text-xs text-gray-900 group-hover:text-[#005461] transition">
                           {t.name}
                         </div>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-800 shrink-0">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#00b7b5]/15 text-[#005461] border border-[#018790]/20 shrink-0">
                           {t.hasBorder ? 'Framed' : 'Clean'}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-500 line-clamp-2 mt-1 font-nastaliq" dir="rtl">
                         {t.defaultTitle}
                       </p>
-                      <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400 group-hover:text-cyan-700 font-medium">
+                      <div className="mt-2 pt-2 border-t border-[#018790]/15 flex items-center justify-between text-[11px] text-gray-400 group-hover:text-[#005461] font-medium">
                         <span>Click to Apply</span>
                         <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
                       </div>
@@ -413,7 +448,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     value={elementSearch}
                     onChange={(e) => setElementSearch(e.target.value)}
                     placeholder="Search shapes, English icons, badges... / تلاش کریں"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-8 py-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                    className="w-full bg-[#f4f4f4]/60 border border-[#018790]/20 rounded-xl pl-9 pr-8 py-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#00b7b5]/40 transition"
                   />
                   {elementSearch && (
                     <button
@@ -428,19 +463,19 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 </div>
 
                 {/* 2. Color & Style Controls (Live Customization) */}
-                <div className="bg-purple-50/70 border border-purple-100 rounded-2xl p-3 space-y-2.5">
+                <div className="bg-[#00b7b5]/10 border border-[#018790]/20 rounded-2xl p-3 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
-                      <Palette className="w-3.5 h-3.5 text-purple-600" />
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#005461]">
+                      <Palette className="w-3.5 h-3.5 text-[#018790]" />
                       <span>Element Color (رنگ منتخب کریں)</span>
                     </div>
                     {/* Hex Badge and Native Picker */}
                     <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-purple-200 text-purple-800 uppercase shadow-2xs">
+                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-[#018790]/20 text-[#005461] uppercase shadow-2xs">
                         {elementColor}
                       </span>
                       <label
-                        className="relative w-6 h-6 rounded-lg cursor-pointer border border-gray-300 shadow-2xs flex items-center justify-center overflow-hidden hover:scale-110 transition"
+                        className="relative w-6 h-6 rounded-lg cursor-pointer border border-[#018790]/25 shadow-2xs flex items-center justify-center overflow-hidden hover:scale-110 transition"
                         style={{ backgroundColor: elementColor }}
                         title="Choose custom color (اپنی مرضی کا رنگ)"
                       >
@@ -463,7 +498,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         onClick={() => setElementColor(col.hex)}
                         className={`w-5 h-5 rounded-full border transition cursor-pointer flex items-center justify-center ${
                           elementColor.toLowerCase() === col.hex.toLowerCase()
-                            ? 'ring-2 ring-purple-600 ring-offset-1 scale-110 shadow-xs'
+                            ? 'ring-2 ring-[#005461] ring-offset-1 scale-110 shadow-xs'
                             : 'border-black/10 hover:scale-110'
                         }`}
                         style={{ backgroundColor: col.hex }}
@@ -477,16 +512,16 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                   </div>
 
                   {/* Style Mode Selector (Fill / Outline / Soft Tint) */}
-                  <div className="pt-2 border-t border-purple-100/80 flex items-center justify-between text-[11px]">
-                    <span className="text-gray-600 font-medium">انداز (Style):</span>
-                    <div className="inline-flex bg-white rounded-lg p-0.5 border border-purple-200 text-[10px] font-semibold">
+                  <div className="pt-2 border-t border-[#018790]/20 flex items-center justify-between text-[11px]">
+                    <span className="text-gray-700 font-medium">انداز (Style):</span>
+                    <div className="inline-flex bg-white rounded-lg p-0.5 border border-[#018790]/20 text-[10px] font-semibold">
                       <button
                         type="button"
                         onClick={() => setElementStyleMode('fill')}
                         className={`px-2 py-0.5 rounded transition ${
                           elementStyleMode === 'fill'
-                            ? 'bg-purple-600 text-white shadow-2xs'
-                            : 'text-gray-600 hover:text-purple-700'
+                            ? 'bg-[#005461] text-white shadow-2xs font-bold'
+                            : 'text-gray-600 hover:text-[#005461]'
                         }`}
                       >
                         Fill (ٹھوس)
@@ -496,8 +531,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         onClick={() => setElementStyleMode('outline')}
                         className={`px-2 py-0.5 rounded transition ${
                           elementStyleMode === 'outline'
-                            ? 'bg-purple-600 text-white shadow-2xs'
-                            : 'text-gray-600 hover:text-purple-700'
+                            ? 'bg-[#005461] text-white shadow-2xs font-bold'
+                            : 'text-gray-600 hover:text-[#005461]'
                         }`}
                       >
                         Outline (خاکہ)
@@ -507,8 +542,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         onClick={() => setElementStyleMode('tint')}
                         className={`px-2 py-0.5 rounded transition ${
                           elementStyleMode === 'tint'
-                            ? 'bg-purple-600 text-white shadow-2xs'
-                            : 'text-gray-600 hover:text-purple-700'
+                            ? 'bg-[#005461] text-white shadow-2xs font-bold'
+                            : 'text-gray-600 hover:text-[#005461]'
                         }`}
                       >
                         Tint (ہلکا)
@@ -536,8 +571,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                       onClick={() => setElementCategory(cat.id)}
                       className={`px-2.5 py-1 rounded-lg shrink-0 font-medium transition cursor-pointer flex items-center gap-1 ${
                         elementCategory === cat.id
-                          ? 'bg-purple-700 text-white shadow-2xs font-semibold'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                          ? 'bg-[#005461] text-white shadow-2xs font-semibold'
+                          : 'bg-[#f4f4f4] text-gray-700 hover:bg-[#00b7b5]/15 border border-[#018790]/20'
                       }`}
                     >
                       <span>{cat.label}</span>
@@ -550,12 +585,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                   <span>
                     کل عناصر: <strong className="text-gray-800">{filteredElements.length}</strong>
                   </span>
-                  <span className="text-[10px] text-purple-700 font-medium">کلک کر کے شامل کریں</span>
+                  <span className="text-[10px] text-[#005461] font-medium">کلک کر کے شامل کریں</span>
                 </div>
 
                 {/* 5. Elements Grid */}
                 {filteredElements.length === 0 ? (
-                  <div className="p-6 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 space-y-2">
+                  <div className="p-6 text-center border-2 border-dashed border-[#018790]/25 rounded-2xl bg-[#f4f4f4]/50 space-y-2">
                     <p className="text-xs text-gray-500">کوئی عنصر تلاش کے مطابق نہیں ملا۔</p>
                     <button
                       type="button"
@@ -563,7 +598,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         setElementSearch('');
                         setElementCategory('all');
                       }}
-                      className="px-3 py-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-xs font-bold transition cursor-pointer"
+                      className="px-3 py-1.5 bg-[#00b7b5]/15 text-[#005461] hover:bg-[#00b7b5]/25 rounded-lg text-xs font-bold transition cursor-pointer border border-[#018790]/30"
                     >
                       تلاش ختم کریں (Clear Search)
                     </button>
@@ -580,13 +615,13 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                           className={`relative flex flex-col items-center justify-between p-2.5 rounded-xl border text-center transition cursor-pointer active:scale-95 group ${
                             isRecentlyAdded
                               ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400'
-                              : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50/30 hover:shadow-xs'
+                              : 'bg-white border-[#018790]/20 hover:border-[#018790] hover:bg-[#00b7b5]/10 hover:shadow-xs'
                           }`}
                           title={`${item.name} (${item.urduName})`}
                         >
                           {/* Recently added feedback badge */}
                           {isRecentlyAdded && (
-                            <span className="absolute top-1 right-1 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-2xs z-10 animate-in zoom-in-50">
+                            <span className="absolute top-1 right-1 bg-[#005461] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-2xs z-10 animate-in zoom-in-50">
                               <Check className="w-2.5 h-2.5" /> شامل ہو گیا
                             </span>
                           )}
@@ -597,8 +632,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                           </div>
 
                           {/* Titles */}
-                          <div className="w-full mt-1.5 pt-1.5 border-t border-gray-100 text-center">
-                            <div className="text-[11px] font-bold text-gray-800 truncate leading-tight group-hover:text-purple-700 transition">
+                          <div className="w-full mt-1.5 pt-1.5 border-t border-[#018790]/15 text-center">
+                            <div className="text-[11px] font-bold text-gray-800 truncate leading-tight group-hover:text-[#005461] transition">
                               {item.name}
                             </div>
                             <div className="text-[10px] text-gray-500 font-nastaliq truncate leading-tight mt-0.5">
@@ -626,9 +661,9 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => onInsertText('<h1 style="font-size: 28px; font-weight: bold; margin: 16px 0 8px; line-height: 1.8;">بڑی سرخی (Main Title)</h1>', true)}
-                  className="w-full p-3 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 border border-gray-200 rounded-xl text-right transition cursor-pointer group"
+                  className="w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl text-right transition cursor-pointer group"
                 >
-                  <div className="font-bold text-lg text-gray-900 group-hover:text-blue-700 font-nastaliq">
+                  <div className="font-bold text-lg text-gray-900 group-hover:text-[#005461] font-nastaliq">
                     بڑی سرخی شامل کریں
                   </div>
                   <div className="text-[11px] text-gray-400">Heading 1 • 28px Bold</div>
@@ -638,9 +673,9 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => onInsertText('<h2 style="font-size: 22px; font-weight: bold; margin: 12px 0 6px; line-height: 1.8;">ذیلی سرخی (Subheading)</h2>', true)}
-                  className="w-full p-3 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 border border-gray-200 rounded-xl text-right transition cursor-pointer group"
+                  className="w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl text-right transition cursor-pointer group"
                 >
-                  <div className="font-semibold text-base text-gray-800 group-hover:text-blue-700 font-nastaliq">
+                  <div className="font-semibold text-base text-gray-800 group-hover:text-[#005461] font-nastaliq">
                     درمیانی سرخی شامل کریں
                   </div>
                   <div className="text-[11px] text-gray-400">Heading 2 • 22px Semi-bold</div>
@@ -650,20 +685,20 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => onInsertText('<p style="font-size: 16px; margin: 8px 0; line-height: 2.2;">یہاں اپنا تفصیلی پیراگراف تحریر فرمائیں...</p>', true)}
-                  className="w-full p-3 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 border border-gray-200 rounded-xl text-right transition cursor-pointer group"
+                  className="w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl text-right transition cursor-pointer group"
                 >
-                  <div className="text-sm text-gray-700 group-hover:text-blue-700 font-nastaliq">
+                  <div className="text-sm text-gray-700 group-hover:text-[#005461] font-nastaliq">
                     عام پیراگراف کا متن
                   </div>
                   <div className="text-[11px] text-gray-400">Body Text • 16px Regular</div>
                 </button>
 
                 {/* Fancy Text Launcher */}
-                <div className="pt-2 border-t border-gray-100">
+                <div className="pt-2 border-t border-[#018790]/20">
                   <button
                     type="button"
                     onClick={onOpenFancyFontsModal}
-                    className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition active:scale-98"
+                    className="w-full py-2.5 px-3 bg-[#018790] hover:bg-[#005461] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition active:scale-98"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>اسٹائلش فونٹس و کشیدہ خطاطی پینل</span>
@@ -677,12 +712,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
             {/* ============================================== */}
             {activeTab === 'poetry' && (
               <div className="space-y-4">
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-1 text-rose-900">
+                <div className="p-3 bg-[#00b7b5]/15 border border-[#018790]/25 rounded-xl text-xs space-y-1 text-[#005461]">
                   <div className="font-bold flex items-center gap-1.5">
-                    <Feather className="w-4 h-4 text-rose-600" />
+                    <Feather className="w-4 h-4 text-[#018790]" />
                     <span>اردو و فارسی شاعری اسٹوڈیو 👑</span>
                   </div>
-                  <p className="text-[11px] text-rose-700 font-nastaliq">
+                  <p className="text-[11px] text-[#005461]/85 font-nastaliq">
                     شعر و شاعری کو دو کالم، خطاطی کالم اور متوازن مصرعوں کے انداز میں درج کریں۔
                   </p>
                 </div>
@@ -690,7 +725,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenPoetryModal}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-rose-600 via-pink-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition active:scale-98"
+                  className="w-full py-3 px-4 bg-[#018790] hover:bg-[#005461] text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition active:scale-98"
                 >
                   <Feather className="w-4 h-4" />
                   <span>اوپن شاعری لائبریری و اسٹوڈیو</span>
@@ -703,7 +738,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 <div className="space-y-2">
                   <div
                     onClick={() => onInsertText('<div style="text-align: center; margin: 16px 0; font-family: inherit; font-size: 18px; line-height: 2.2;"><p>ہزاروں خواہشیں ایسی کہ ہر خواہش پہ دم نکلے</p><p>بہت نکلے مرے ارمان لیکن پھر بھی کم نکلے</p><span style="font-size: 12px; color: #9ca3af;">— مرزا غالب</span></div>', true)}
-                    className="p-3 bg-gray-50 hover:bg-rose-50 hover:border-rose-300 border border-gray-200 rounded-xl cursor-pointer text-center font-nastaliq text-xs text-gray-800 transition"
+                    className="p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl cursor-pointer text-center font-nastaliq text-xs text-gray-800 transition"
                   >
                     <p className="font-semibold text-sm">ہزاروں خواہشیں ایسی کہ ہر خواہش پہ دم نکلے</p>
                     <p className="text-[10px] text-gray-400 mt-1">مرزا اسد اللہ خان غالب</p>
@@ -711,7 +746,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
 
                   <div
                     onClick={() => onInsertText('<div style="text-align: center; margin: 16px 0; font-family: inherit; font-size: 18px; line-height: 2.2;"><p>ستاروں سے آگے جہاں اور بھی ہیں</p><p>ابھی عشق کے امتحاں اور بھی ہیں</p><span style="font-size: 12px; color: #9ca3af;">— علامہ اقبال</span></div>', true)}
-                    className="p-3 bg-gray-50 hover:bg-rose-50 hover:border-rose-300 border border-gray-200 rounded-xl cursor-pointer text-center font-nastaliq text-xs text-gray-800 transition"
+                    className="p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl cursor-pointer text-center font-nastaliq text-xs text-gray-800 transition"
                   >
                     <p className="font-semibold text-sm">ستاروں سے آگے جہاں اور بھی ہیں</p>
                     <p className="text-[10px] text-gray-400 mt-1">علامہ محمد اقبال</p>
@@ -725,30 +760,273 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
             {/* ============================================== */}
             {activeTab === 'uploads' && (
               <div className="space-y-4">
+                {/* Upload Button */}
                 <div
                   onClick={onTriggerImageUpload}
-                  className="border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/50 hover:bg-indigo-50/80 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition active:scale-98 group"
+                  className="border-2 border-dashed border-[#018790]/40 hover:border-[#005461] bg-[#00b7b5]/10 hover:bg-[#00b7b5]/20 rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition active:scale-98 group shadow-2xs"
                 >
-                  <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-2 group-hover:scale-110 transition">
-                    <UploadCloud className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-full bg-white border border-[#018790]/30 flex items-center justify-center text-[#005461] mb-2 group-hover:scale-110 transition shadow-xs">
+                    <UploadCloud className="w-5 h-5" />
                   </div>
-                  <div className="font-bold text-xs text-indigo-950">
-                    تصویر منتخب کریں یا یہاں ڈراپ کریں
+                  <div className="font-bold text-xs text-gray-900">
+                    نئی تصویر منتخب کریں یا اپلوڈ کریں
                   </div>
-                  <div className="text-[10px] text-indigo-700/80 mt-1">
-                    Upload Images (PNG, JPG, SVG, WebP)
+                  <div className="text-[10px] text-[#005461] mt-0.5">
+                    PNG, JPG, WebP (بائیں جانب شامل ہوگی)
                   </div>
                 </div>
 
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs space-y-2 text-gray-600">
-                  <div className="font-semibold text-gray-900 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>تصویر شامل کرنے کے بعد:</span>
+                {/* If an image is currently selected, show rich controls */}
+                {selectedImage ? (
+                  <div className="p-3.5 bg-white rounded-2xl border-2 border-[#005461] space-y-3 shadow-md animate-in fade-in-50 duration-150">
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-2 border-b border-[#018790]/20">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-md bg-[#005461] text-white flex items-center justify-center">
+                          <ImageIcon className="w-3 h-3" />
+                        </div>
+                        <span className="font-bold text-xs text-gray-900">منتخب تصویر کے کنٹرولز</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-[#00b7b5]/15 text-[#005461] font-bold font-mono text-[10px] border border-[#018790]/30">
+                        {imageWidthPercent}%
+                      </span>
+                    </div>
+
+                    {/* Resize Stepper & Slider */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-800">
+                          سائز چھوٹا / بڑا کریں:
+                        </span>
+                        <span className="text-[10px] text-[#005461] font-mono font-bold">
+                          {imageWidthPercent}% چوڑائی
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateImageWidth && onUpdateImageWidth(Math.max(10, imageWidthPercent - 10))}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-[#018790]/20 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
+                          title="چھوٹا کریں (-10%)"
+                        >
+                          <Minus className="w-3 h-3" />
+                          <span>چھوٹا</span>
+                        </button>
+                        <input
+                          type="range"
+                          min={15}
+                          max={100}
+                          step={5}
+                          value={imageWidthPercent}
+                          onChange={(e) => onUpdateImageWidth && onUpdateImageWidth(parseInt(e.target.value, 10))}
+                          className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#005461]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => onUpdateImageWidth && onUpdateImageWidth(Math.min(100, imageWidthPercent + 10))}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-[#018790]/20 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
+                          title="بڑا کریں (+10%)"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>بڑا</span>
+                        </button>
+                      </div>
+
+                      {/* Quick Presets */}
+                      <div className="grid grid-cols-4 gap-1 pt-1">
+                        {[
+                          { pct: 25, label: '25% چھوٹا' },
+                          { pct: 50, label: '50% درمیانہ' },
+                          { pct: 75, label: '75% بڑا' },
+                          { pct: 100, label: '100% پورا' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.pct}
+                            type="button"
+                            onClick={() => onUpdateImageWidth && onUpdateImageWidth(preset.pct)}
+                            className={`py-1 text-[10px] font-bold rounded-md border transition text-center ${
+                              imageWidthPercent === preset.pct
+                                ? 'bg-[#005461] text-white border-[#005461] shadow-2xs'
+                                : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Alignment Controls (بائیں، درمیان، دائیں) */}
+                    <div className="space-y-1.5 pt-1 border-t border-[#018790]/20">
+                      <span className="text-[11px] font-bold text-gray-800 block">
+                        الائنمنٹ (بائیں یا دائیں جانب رکھیں):
+                      </span>
+
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateImageAlignment && onUpdateImageAlignment('left')}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1 transition ${
+                            imageAlignment === 'left'
+                              ? 'bg-[#005461] text-white border-[#005461] shadow-xs'
+                              : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
+                          }`}
+                          title="بائیں جانب کریں (Left)"
+                        >
+                          <AlignLeft className="w-3.5 h-3.5" />
+                          <span>بائیں (Left)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateImageAlignment && onUpdateImageAlignment('center')}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1 transition ${
+                            imageAlignment === 'center'
+                              ? 'bg-[#005461] text-white border-[#005461] shadow-xs'
+                              : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
+                          }`}
+                          title="درمیان میں کریں (Center)"
+                        >
+                          <AlignCenter className="w-3.5 h-3.5" />
+                          <span>درمیان</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateImageAlignment && onUpdateImageAlignment('right')}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1 transition ${
+                            imageAlignment === 'right'
+                              ? 'bg-[#005461] text-white border-[#005461] shadow-xs'
+                              : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
+                          }`}
+                          title="دائیں جانب کریں (Right)"
+                        >
+                          <AlignRight className="w-3.5 h-3.5" />
+                          <span>دائیں</span>
+                        </button>
+                      </div>
+
+                      {/* Text wrap / Float */}
+                      <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateImageAlignment && onUpdateImageAlignment('float-left')}
+                          className={`py-1 px-1.5 rounded-md text-[10px] font-bold border transition ${
+                            imageAlignment === 'float-left'
+                              ? 'bg-[#005461] text-white border-[#005461]'
+                              : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
+                          }`}
+                        >
+                          متن بائیں بہاؤ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateImageAlignment && onUpdateImageAlignment('float-right')}
+                          className={`py-1 px-1.5 rounded-md text-[10px] font-bold border transition ${
+                            imageAlignment === 'float-right'
+                              ? 'bg-[#005461] text-white border-[#005461]'
+                              : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
+                          }`}
+                        >
+                          متن دائیں بہاؤ
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Visual Styling: Corners & Effects */}
+                    <div className="space-y-1.5 pt-1 border-t border-[#018790]/20">
+                      <span className="text-[11px] font-bold text-gray-800 block">
+                        کونے اور سٹائل:
+                      </span>
+                      <div className="grid grid-cols-5 gap-1 text-center">
+                        {([
+                          { id: 'none', label: 'سیدھا' },
+                          { id: 'sm', label: 'ہلکا' },
+                          { id: 'md', label: 'معیاری' },
+                          { id: 'lg', label: 'گول' },
+                          { id: 'full', label: 'دائرہ' }
+                        ] as const).map((r) => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => onUpdateImageRounded && onUpdateImageRounded(r.id)}
+                            className={`py-1 text-[10px] rounded-md border transition ${
+                              imageRounded === r.id
+                                ? 'bg-[#005461] text-white border-[#005461] font-bold'
+                                : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
+                            }`}
+                          >
+                            {r.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={onToggleImageShadow}
+                          className={`py-1 px-2 rounded-lg text-[10px] font-bold border transition flex items-center justify-center gap-1 ${
+                            imageShadow
+                              ? 'bg-[#00b7b5]/20 text-[#005461] border-[#018790]'
+                              : 'bg-white text-gray-600 border-[#018790]/20'
+                          }`}
+                        >
+                          <span>سایہ (Shadow):</span>
+                          <span>{imageShadow ? 'آن' : 'بند'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onToggleImageBorder}
+                          className={`py-1 px-2 rounded-lg text-[10px] font-bold border transition flex items-center justify-center gap-1 ${
+                            imageBorder
+                              ? 'bg-[#00b7b5]/20 text-[#005461] border-[#018790]'
+                              : 'bg-white text-gray-600 border-[#018790]/20'
+                          }`}
+                        >
+                          <span>بارڈر (Border):</span>
+                          <span>{imageBorder ? 'آن' : 'بند'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Actions: Duplicate & Delete */}
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-[#018790]/20">
+                      <button
+                        type="button"
+                        onClick={onDuplicateSelectedImage}
+                        className="flex-1 py-1.5 rounded-lg bg-white border border-[#018790]/20 hover:bg-[#00b7b5]/15 text-gray-700 font-bold text-xs flex items-center justify-center gap-1 transition"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-[#005461]" />
+                        <span>کاپی بنائیں</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onDeleteSelectedImage}
+                        className="flex-1 py-1.5 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-1 transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                        <span>تصویر ڈیلیٹ</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onDeselectImage}
+                        className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 transition"
+                        title="انتخاب ختم کریں"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-[11px] leading-relaxed">
-                    تصویر پر کلک کر کے آپ کینوا کی طرح اس کے کونوں اور کناروں سے باآسانی اس کا سائز چھوٹا یا بڑا کر سکتے ہیں اور گولائی یا سایہ شامل کر سکتے ہیں۔
-                  </p>
-                </div>
+                ) : (
+                  <div className="p-3 bg-[#f4f4f4]/60 rounded-xl border border-[#018790]/20 text-xs space-y-2 text-gray-600">
+                    <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#018790]" />
+                      <span>تصویر کو چھوٹا/بڑا یا بائیں کرنے کا طریقہ:</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed">
+                      صفحے پر موجود کسی بھی تصویر پر کلک کریں تاکہ وہ منتخب ہو جائے، یا نئی تصویر اپلوڈ کریں۔ آپ تصویر کے کونوں کو کھینچ کر، یا سائز بٹنوں اور سلائیڈر سے اسے چھوٹا یا بڑا کر سکتے ہیں، اور ایک کلک میں <strong>بائیں جانب (Left)</strong> یا درمیان منتقل کر سکتے ہیں!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -758,17 +1036,17 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
             {activeTab === 'tools' && (
               <div className="space-y-4">
                 {/* Urdu Keyboard Toggle */}
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                <div className="p-3 bg-[#f4f4f4]/60 border border-[#018790]/20 rounded-xl space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Keyboard className="w-4 h-4 text-blue-600" />
+                      <Keyboard className="w-4 h-4 text-[#005461]" />
                       <span className="font-bold text-xs text-gray-800">اردو فونیٹک کی بورڈ</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setIsUrduKeyboardOpen(!isUrduKeyboardOpen)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${
-                        isUrduKeyboardOpen ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+                        isUrduKeyboardOpen ? 'bg-[#005461] text-white' : 'bg-gray-200 text-gray-700'
                       }`}
                     >
                       {isUrduKeyboardOpen ? 'فعال ہے (On)' : 'بند ہے (Off)'}
@@ -800,19 +1078,19 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 </div>
 
                 {/* Metrics */}
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 text-xs">
+                <div className="p-3 bg-[#f4f4f4]/60 border border-[#018790]/20 rounded-xl space-y-2 text-xs">
                   <div className="font-bold text-gray-900">دستاویز کے اعداد و شمار:</div>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-white p-2 rounded-lg border border-gray-100 shadow-2xs">
-                      <div className="font-mono font-bold text-sm text-blue-600">{wordCount}</div>
+                    <div className="bg-white p-2 rounded-lg border border-[#018790]/20 shadow-2xs">
+                      <div className="font-mono font-bold text-sm text-[#005461]">{wordCount}</div>
                       <div className="text-[10px] text-gray-400">الفاظ (Words)</div>
                     </div>
-                    <div className="bg-white p-2 rounded-lg border border-gray-100 shadow-2xs">
-                      <div className="font-mono font-bold text-sm text-purple-600">{charCount}</div>
+                    <div className="bg-white p-2 rounded-lg border border-[#018790]/20 shadow-2xs">
+                      <div className="font-mono font-bold text-sm text-[#005461]">{charCount}</div>
                       <div className="text-[10px] text-gray-400">حروف (Chars)</div>
                     </div>
-                    <div className="bg-white p-2 rounded-lg border border-gray-100 shadow-2xs">
-                      <div className="font-mono font-bold text-sm text-emerald-600">{pagesCount}</div>
+                    <div className="bg-white p-2 rounded-lg border border-[#018790]/20 shadow-2xs">
+                      <div className="font-mono font-bold text-sm text-[#005461]">{pagesCount}</div>
                       <div className="text-[10px] text-gray-400">صفحات (Pages)</div>
                     </div>
                   </div>
@@ -832,7 +1110,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     <button
                       type="button"
                       onClick={onOpenPageColorModal}
-                      className="text-[11px] text-blue-600 hover:underline"
+                      className="text-[11px] text-[#018790] font-semibold hover:underline"
                     >
                       مزید رنگ
                     </button>
@@ -846,7 +1124,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         style={{ backgroundColor: hex }}
                         className={`h-8 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                           pageColor.toLowerCase() === hex.toLowerCase()
-                            ? 'ring-2 ring-blue-600 ring-offset-2 border-transparent scale-105'
+                            ? 'ring-2 ring-[#005461] ring-offset-2 border-transparent scale-105'
                             : 'border-gray-200 hover:scale-105'
                         }`}
                         title={hex}
@@ -860,14 +1138,14 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 </div>
 
                 {/* Frame / Border Toggle */}
-                <div className="pt-2 border-t border-gray-100 space-y-3">
+                <div className="pt-2 border-t border-[#018790]/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-900">صفحہ کا فریم (Border / Frame)</span>
                     <button
                       type="button"
                       onClick={() => setHasBorder(!hasBorder)}
                       className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
-                        hasBorder ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+                        hasBorder ? 'bg-[#005461] text-white' : 'bg-gray-200 text-gray-700'
                       }`}
                     >
                       {hasBorder ? 'آن ہے (On)' : 'آف ہے (Off)'}
@@ -885,7 +1163,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                             onClick={() => setBorderType(b)}
                             className={`py-1.5 px-2 rounded-lg border capitalize transition text-center ${
                               borderType === b
-                                ? 'bg-blue-50 border-blue-600 text-blue-800 font-bold'
+                                ? 'bg-[#00b7b5]/20 border-[#018790] text-[#005461] font-bold'
                                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                             }`}
                           >
@@ -897,7 +1175,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                       <button
                         type="button"
                         onClick={onOpenBorderModal}
-                        className="w-full mt-2 py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                        className="w-full mt-2 py-2 px-3 bg-[#f4f4f4] hover:bg-[#00b7b5]/15 text-[#005461] font-semibold text-xs rounded-xl border border-[#018790]/25 transition flex items-center justify-center gap-1.5"
                       >
                         <Sliders className="w-3.5 h-3.5" />
                         <span>تفصیلی فریم ترتیبات (Border Modal)</span>
@@ -907,7 +1185,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 </div>
 
                 {/* Sheet Size */}
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                <div className="pt-2 border-t border-[#018790]/20 flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-gray-900">ورق کا سائز (Sheet Size)</div>
                     <div className="text-[11px] text-gray-500 font-mono">{pageSize}</div>
@@ -915,7 +1193,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                   <button
                     type="button"
                     onClick={onOpenPageSizeModal}
-                    className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-lg transition"
+                    className="px-2.5 py-1 bg-[#f4f4f4] hover:bg-[#00b7b5]/15 text-[#005461] border border-[#018790]/25 font-semibold text-xs rounded-lg transition"
                   >
                     تبدیل کریں
                   </button>
