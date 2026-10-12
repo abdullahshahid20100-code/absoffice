@@ -187,6 +187,12 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [isTranslationSelectionScope, setIsTranslationSelectionScope] = useState(false);
   const [isQuickTranslating, setIsQuickTranslating] = useState(false);
   const [isTranslateDropdownOpen, setIsTranslateDropdownOpen] = useState(false);
+  const [floatingTranslateBubble, setFloatingTranslateBubble] = useState<{
+    visible: boolean;
+    top: number;
+    left: number;
+    text: string;
+  } | null>(null);
 
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
@@ -514,7 +520,26 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       if (!foundSize) {
         setFontSize(baseFontSize);
       }
+
+      // Check if text is selected in the editor for floating translate pill
+      if (!sel.isCollapsed) {
+        const selectedStr = sel.toString().trim();
+        if (selectedStr.length > 0) {
+          const range = sel.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            setFloatingTranslateBubble({
+              visible: true,
+              top: Math.max(70, rect.top - 46),
+              left: Math.max(100, Math.min(window.innerWidth - 100, rect.left + rect.width / 2)),
+              text: selectedStr,
+            });
+            return;
+          }
+        }
+      }
     }
+    setFloatingTranslateBubble(null);
   };
 
   // Image Selection and Interaction Listener
@@ -594,6 +619,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       }
       if (!target.closest('#toolbar-btn-translate-dropdown-toggle') && !target.closest('#toolbar-btn-quick-auto-translate')) {
         setIsTranslateDropdownOpen(false);
+      }
+      if (!target.closest('#floating-translate-bubble') && !editorRef.current?.contains(target)) {
+        setFloatingTranslateBubble(null);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -1110,12 +1138,26 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       const targetFont = targetDir === 'rtl' ? 'font-nastaliq' : 'font-sans-custom';
 
       if (hasSelection && selectedRange) {
-        const selection = window.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(selectedRange);
+        try {
+          selectedRange.deleteContents();
+          const node = document.createTextNode(resultText);
+          selectedRange.insertNode(node);
+          const sel = window.getSelection();
+          if (sel) {
+            sel.removeAllRanges();
+            const newRange = document.createRange();
+            newRange.setStartAfter(node);
+            newRange.setEndAfter(node);
+            sel.addRange(newRange);
+          }
+        } catch {
+          const selection = window.getSelection();
+          if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(selectedRange);
+          }
+          document.execCommand('insertText', false, resultText);
         }
-        document.execCommand('insertText', false, resultText);
       } else {
         if (resultText.includes('<') && resultText.includes('>')) {
           editorRef.current.innerHTML = resultText;
@@ -1131,6 +1173,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         setFontFamily(targetFont);
       }
 
+      if (editorRef.current) {
+        editorRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+      }
       recalculatePagination();
 
       onShowToast({
@@ -1180,12 +1225,27 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     if (!editorRef.current) return;
 
     if (isTranslationSelectionScope && savedSelectionRef.current) {
-      const sel = window.getSelection();
-      if (sel) {
-        sel.removeAllRanges();
-        sel.addRange(savedSelectionRef.current);
+      try {
+        const range = savedSelectionRef.current;
+        range.deleteContents();
+        const node = document.createTextNode(convertedText);
+        range.insertNode(node);
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          const newRange = document.createRange();
+          newRange.setStartAfter(node);
+          newRange.setEndAfter(node);
+          sel.addRange(newRange);
+        }
+      } catch {
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(savedSelectionRef.current);
+        }
+        document.execCommand('insertText', false, convertedText);
       }
-      document.execCommand('insertText', false, convertedText);
     } else {
       if (convertedText.includes('<') && convertedText.includes('>')) {
         editorRef.current.innerHTML = convertedText;
@@ -1203,6 +1263,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       }
     }
 
+    if (editorRef.current) {
+      editorRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     recalculatePagination();
 
     onShowToast({
@@ -4350,6 +4413,75 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         onApply={handleApplyTranslationModal}
         lang={lang}
       />
+
+      {/* 16. Floating Selection Quick Translation & Correction Bubble (منتخب تحریر کے اوپر خودکار ترجمہ) */}
+      {floatingTranslateBubble && floatingTranslateBubble.visible && (
+        <div
+          id="floating-translate-bubble"
+          style={{
+            position: 'fixed',
+            top: `${floatingTranslateBubble.top}px`,
+            left: `${floatingTranslateBubble.left}px`,
+            transform: 'translateX(-50%)',
+            zIndex: 65,
+          }}
+          className="animate-in fade-in zoom-in-95 duration-150"
+        >
+          <div className="flex items-center gap-1.5 bg-gray-900/95 text-white px-2.5 py-1.5 rounded-2xl shadow-2xl backdrop-blur-md border border-white/20 text-xs">
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => {
+                setFloatingTranslateBubble(null);
+                handleQuickTranslate('auto');
+              }}
+              disabled={isQuickTranslating}
+              className="flex items-center gap-1.5 px-3 py-1 font-bold rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white shadow-md transition active:scale-95 cursor-pointer disabled:opacity-50"
+              title="منتخب تحریر کو خودکار اردو ⇄ انگلش میں تبدیل اور درست کریں"
+            >
+              {isQuickTranslating ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>تبدیل ہو رہا ہے...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+                  <span>⚡ تبدیل و درستی (Urdu ⇄ English)</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => {
+                setFloatingTranslateBubble(null);
+                handleOpenTranslationModal();
+              }}
+              className="p-1.5 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition"
+              title="ترجمہ ونڈو کھولیں"
+            >
+              <Languages className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFloatingTranslateBubble(null)}
+              className="p-1 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition"
+              title="بند کریں"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
