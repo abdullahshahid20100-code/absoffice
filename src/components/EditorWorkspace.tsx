@@ -51,7 +51,8 @@ import { SavedDocument, PageSize, DocumentTemplate } from '../types';
 import { UrduKeyboard } from './UrduKeyboard';
 import { PoetryModal } from './PoetryModal';
 import { PageColorModal, isColorDark } from './PageColorModal';
-import { TranslationModal, TranslationMode } from './TranslationModal';
+import { TranslationModal } from './TranslationModal';
+import { executeTranslationAndCorrection, TranslationMode } from '../utils/translator';
 import { CanvaSidebar, CanvaSidebarTab } from './CanvaSidebar';
 import { CanvaImageOverlay } from './CanvaImageOverlay';
 import { CanvaElementOverlay } from './CanvaElementOverlay';
@@ -1098,27 +1099,14 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     });
 
     try {
-      const response = await fetch('/api/translate-correct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: hasSelection ? textToProcess : editorRef.current.innerHTML,
-          mode,
-          preserveHtml: !hasSelection
-        })
-      });
+      const resData = await executeTranslationAndCorrection(
+        hasSelection ? textToProcess : editorRef.current.innerHTML,
+        mode,
+        !hasSelection
+      );
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to translate');
-      }
-
-      const resData = data.data;
-      const resultText = resData.result;
-      const targetDir: 'ltr' | 'rtl' =
-        resData.direction === 'rtl' || resData.targetLanguage === 'Urdu' || /[\u0600-\u06FF]/.test(resultText)
-          ? 'rtl'
-          : 'ltr';
+      const resultText = resData.text;
+      const targetDir: 'ltr' | 'rtl' = resData.direction;
       const targetFont = targetDir === 'rtl' ? 'font-nastaliq' : 'font-sans-custom';
 
       if (hasSelection && selectedRange) {

@@ -1,5 +1,7 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -10,7 +12,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const isDev = process.env.NODE_ENV === 'development';
+const PORT = isDev ? 3000 : (process.env.PORT ? Number(process.env.PORT) : 3000);
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -166,22 +169,30 @@ Please process this text according to the rules and output strictly formatted JS
 });
 
 async function startServer() {
-  if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
-    });
-  } else {
+  const distPath = path.resolve(__dirname, 'dist');
+  const hasDist = fs.existsSync(path.resolve(distPath, 'index.html'));
+
+  if (isDev) {
     const { createServer } = await import('vite');
     const vite = await createServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
+  } else if (hasDist) {
+    app.use(express.static(distPath));
+    app.get('*', (_req: Request, res: Response) => {
+      res.sendFile(path.resolve(distPath, 'index.html'));
+    });
+  } else {
+    // Fallback if dist doesn't exist yet
+    app.get('/', (_req: Request, res: Response) => {
+      res.send('Server is running. Please build the client app with "npm run build".');
+    });
   }
 
   app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server listening on port ${PORT}`);
+    console.log(`Server listening on port ${PORT} (mode: ${isDev ? 'development' : 'production'})`);
   });
 }
 

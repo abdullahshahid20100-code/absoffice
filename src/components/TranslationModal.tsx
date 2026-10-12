@@ -14,8 +14,8 @@ import {
   AlignLeft,
   Wand2
 } from 'lucide-react';
-
-export type TranslationMode = 'auto' | 'urdu_to_english' | 'english_to_urdu' | 'correct_only';
+import { executeTranslationAndCorrection, TranslationMode } from '../utils/translator';
+export type { TranslationMode };
 
 interface TranslationModalProps {
   isOpen: boolean;
@@ -72,34 +72,18 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({
     setError(null);
 
     try {
-      const response = await fetch('/api/translate-correct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: textToProcess,
-          mode: activeMode,
-          preserveHtml: textToProcess.includes('<') && textToProcess.includes('>')
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Translation failed');
-      }
-
-      const resData = data.data;
-      const targetDir: 'ltr' | 'rtl' =
-        resData.direction === 'rtl' || resData.targetLanguage === 'Urdu' || /[\u0600-\u06FF]/.test(resData.result)
-          ? 'rtl'
-          : 'ltr';
+      const resData = await executeTranslationAndCorrection(
+        textToProcess,
+        activeMode,
+        textToProcess.includes('<') && textToProcess.includes('>')
+      );
 
       setResult({
-        text: resData.result,
+        text: resData.text,
         detectedLanguage: resData.detectedLanguage,
         targetLanguage: resData.targetLanguage,
         summary: resData.summary,
-        direction: targetDir
+        direction: resData.direction
       });
     } catch (err: any) {
       console.error('Translation error:', err);
