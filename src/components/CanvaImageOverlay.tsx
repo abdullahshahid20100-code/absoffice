@@ -5,6 +5,8 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  ArrowUp,
+  ArrowDown,
   Maximize2,
   Sparkles,
   X,
@@ -19,7 +21,10 @@ interface CanvaImageOverlayProps {
   onDeselect: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   onUpdate: () => void;
+  lang?: 'urdu' | 'english';
 }
 
 type ResizeHandle =
@@ -38,8 +43,12 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
   onDeselect,
   onDelete,
   onDuplicate,
-  onUpdate
+  onMoveUp,
+  onMoveDown,
+  onUpdate,
+  lang = 'urdu'
 }) => {
+  const isUrdu = lang === 'urdu';
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -57,16 +66,37 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
     const imgBounds = selectedImage.getBoundingClientRect();
     const containerBounds = workspaceRef.current.getBoundingClientRect();
 
-    setRect({
+    const newRect = {
       top: imgBounds.top - containerBounds.top + workspaceRef.current.scrollTop,
       left: imgBounds.left - containerBounds.left + workspaceRef.current.scrollLeft,
       width: imgBounds.width,
       height: imgBounds.height
+    };
+
+    const newWidth = Math.round(imgBounds.width);
+    const newHeight = Math.round(imgBounds.height);
+
+    setRect((prev) => {
+      if (
+        prev &&
+        Math.abs(prev.top - newRect.top) < 0.5 &&
+        Math.abs(prev.left - newRect.left) < 0.5 &&
+        Math.abs(prev.width - newRect.width) < 0.5 &&
+        Math.abs(prev.height - newRect.height) < 0.5
+      ) {
+        return prev;
+      }
+      return newRect;
     });
 
-    setLiveSize({
-      width: Math.round(imgBounds.width),
-      height: Math.round(imgBounds.height)
+    setLiveSize((prev) => {
+      if (prev && prev.width === newWidth && prev.height === newHeight) {
+        return prev;
+      }
+      return {
+        width: newWidth,
+        height: newHeight
+      };
     });
   }, [selectedImage, workspaceRef]);
 
@@ -383,19 +413,19 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
             type="button"
             onClick={() => handleStepSize(-10)}
             className="px-2 py-1 text-[11px] font-bold rounded-lg bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
-            title="چھوٹا کریں (Smaller -10%)"
+            title={isUrdu ? 'چھوٹا کریں (-10%)' : 'Decrease size (-10%)'}
           >
             <span>−</span>
-            <span>چھوٹا</span>
+            <span>{isUrdu ? 'چھوٹا' : 'Smaller'}</span>
           </button>
           <button
             type="button"
             onClick={() => handleStepSize(10)}
             className="px-2 py-1 text-[11px] font-bold rounded-lg bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
-            title="بڑا کریں (Bigger +10%)"
+            title={isUrdu ? 'بڑا کریں (+10%)' : 'Increase size (+10%)'}
           >
             <span>+</span>
-            <span>بڑا</span>
+            <span>{isUrdu ? 'بڑا' : 'Bigger'}</span>
           </button>
         </div>
 
@@ -407,14 +437,14 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
               type="button"
               onClick={() => applyPresetWidth(pct)}
               className="px-1.5 py-1 text-[10px] font-bold rounded hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-600"
-              title={`سیٹ کریں ${pct}% چوڑائی`}
+              title={isUrdu ? `${pct}% چوڑائی سیٹ کریں` : `Set width to ${pct}%`}
             >
               {pct}%
             </button>
           ))}
         </div>
 
-        {/* Alignment: Left (بائیں), Center (درمیان), Right (دائیں) */}
+        {/* Alignment */}
         <div className="flex items-center gap-1 pr-1.5 border-r border-[#018790]/20">
           <button
             type="button"
@@ -424,10 +454,10 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
                 ? 'bg-[#005461] text-white shadow-xs'
                 : 'bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700'
             }`}
-            title="بائیں جانب کریں (Move to Left Side)"
+            title={isUrdu ? 'بائیں جانب کریں' : 'Align Left'}
           >
             <AlignLeft className="w-3.5 h-3.5" />
-            <span>بائیں (Left)</span>
+            <span>{isUrdu ? 'بائیں' : 'Left'}</span>
           </button>
           <button
             type="button"
@@ -437,10 +467,10 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
                 ? 'bg-[#005461] text-white shadow-xs'
                 : 'bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700'
             }`}
-            title="درمیان میں کریں (Align Center)"
+            title={isUrdu ? 'درمیان میں کریں' : 'Align Center'}
           >
             <AlignCenter className="w-3.5 h-3.5" />
-            <span>درمیان</span>
+            <span>{isUrdu ? 'درمیان' : 'Center'}</span>
           </button>
           <button
             type="button"
@@ -450,12 +480,48 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
                 ? 'bg-[#005461] text-white shadow-xs'
                 : 'bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700'
             }`}
-            title="دائیں جانب کریں (Align Right)"
+            title={isUrdu ? 'دائیں جانب کریں' : 'Align Right'}
           >
             <AlignRight className="w-3.5 h-3.5" />
-            <span>دائیں</span>
+            <span>{isUrdu ? 'دائیں' : 'Right'}</span>
           </button>
         </div>
+
+        {/* Move Up & Move Down (اوپر اور نیچے منتقل کریں) */}
+        {(onMoveUp || onMoveDown) && (
+          <div className="flex items-center gap-1 pr-1.5 border-r border-[#018790]/20">
+            {onMoveUp && (
+              <button
+                type="button"
+                onClick={() => {
+                  onMoveUp();
+                  setTimeout(updateRect, 40);
+                  setTimeout(updateRect, 150);
+                }}
+                className="px-2 py-1 rounded-lg text-[11px] font-bold bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700 transition flex items-center gap-1 active:scale-95"
+                title={isUrdu ? 'اوپر لے جائیں' : 'Move Up'}
+              >
+                <ArrowUp className="w-3.5 h-3.5 text-[#005461]" />
+                <span>{isUrdu ? 'اوپر' : 'Up'}</span>
+              </button>
+            )}
+            {onMoveDown && (
+              <button
+                type="button"
+                onClick={() => {
+                  onMoveDown();
+                  setTimeout(updateRect, 40);
+                  setTimeout(updateRect, 150);
+                }}
+                className="px-2 py-1 rounded-lg text-[11px] font-bold bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 hover:text-[#005461] text-gray-700 transition flex items-center gap-1 active:scale-95"
+                title={isUrdu ? 'نیچے لے جائیں' : 'Move Down'}
+              >
+                <ArrowDown className="w-3.5 h-3.5 text-[#005461]" />
+                <span>{isUrdu ? 'نیچے' : 'Down'}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Rounded Corners */}
         <button
@@ -466,9 +532,13 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
               ? 'bg-[#00b7b5]/15 text-[#005461] border-[#018790]'
               : 'bg-white border-[#018790]/25 hover:bg-gray-50 text-gray-600'
           }`}
-          title="گولائی تبدیل کریں (Toggle Rounded Corners)"
+          title={isUrdu ? 'گولائی تبدیل کریں' : 'Toggle Rounded Corners'}
         >
-          {imageRounded === 'none' ? 'سیدھا' : imageRounded === 'md' ? 'گول' : 'دائرہ'}
+          {imageRounded === 'none'
+            ? isUrdu ? 'سیدھا' : 'Square'
+            : imageRounded === 'md'
+            ? isUrdu ? 'گول' : 'Round'
+            : isUrdu ? 'دائرہ' : 'Circle'}
         </button>
 
         {/* Shadow */}
@@ -480,9 +550,9 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
               ? 'bg-[#00b7b5]/15 text-[#005461] border-[#018790]'
               : 'bg-white border-[#018790]/25 hover:bg-gray-50 text-gray-600'
           }`}
-          title="سایہ آن یا آف کریں (Toggle Shadow)"
+          title={isUrdu ? 'سایہ آن یا آف کریں' : 'Toggle Shadow'}
         >
-          سایہ
+          {isUrdu ? 'سایہ' : 'Shadow'}
         </button>
 
         {/* Lock / Unlock */}
@@ -492,7 +562,7 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
           className={`p-1.5 rounded-lg border transition ${
             isLocked ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-white border-[#018790]/25 hover:bg-gray-50 text-gray-600'
           }`}
-          title={isLocked ? 'Unlock Image' : 'Lock Image'}
+          title={isUrdu ? (isLocked ? 'کھولیں' : 'لاک کریں') : (isLocked ? 'Unlock Image' : 'Lock Image')}
         >
           {isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
         </button>
@@ -502,7 +572,7 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
           type="button"
           onClick={onDuplicate}
           className="p-1.5 text-gray-600 hover:text-[#005461] bg-white border border-[#018790]/25 hover:bg-[#00b7b5]/15 rounded-lg transition"
-          title="تصویر کی کاپی بنائیں (Duplicate Image)"
+          title={isUrdu ? 'تصویر کی کاپی بنائیں' : 'Duplicate Image'}
         >
           <Copy className="w-3.5 h-3.5" />
         </button>
@@ -512,7 +582,7 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
           type="button"
           onClick={onDelete}
           className="p-1.5 text-red-600 hover:text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition"
-          title="تصویر حذف کریں (Delete Image)"
+          title={isUrdu ? 'تصویر حذف کریں' : 'Delete Image'}
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -522,7 +592,7 @@ export const CanvaImageOverlay: React.FC<CanvaImageOverlayProps> = ({
           type="button"
           onClick={onDeselect}
           className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
-          title="بند کریں (Deselect)"
+          title={isUrdu ? 'بند کریں' : 'Deselect'}
         >
           <X className="w-3.5 h-3.5" />
         </button>

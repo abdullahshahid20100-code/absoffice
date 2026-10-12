@@ -41,7 +41,9 @@ import {
   Wand2,
   BookOpen,
   Feather,
-  PaintBucket
+  PaintBucket,
+  Languages,
+  ArrowRightLeft
 } from 'lucide-react';
 import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
@@ -49,8 +51,10 @@ import { SavedDocument, PageSize, DocumentTemplate } from '../types';
 import { UrduKeyboard } from './UrduKeyboard';
 import { PoetryModal } from './PoetryModal';
 import { PageColorModal, isColorDark } from './PageColorModal';
+import { TranslationModal, TranslationMode } from './TranslationModal';
 import { CanvaSidebar, CanvaSidebarTab } from './CanvaSidebar';
 import { CanvaImageOverlay } from './CanvaImageOverlay';
+import { CanvaElementOverlay } from './CanvaElementOverlay';
 import { AVAILABLE_TEXT_STYLES, transformTextStyle, transformLiveChar, TextStyleOption } from '../utils/textStyler';
 
 interface EditorWorkspaceProps {
@@ -96,6 +100,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     initialDocument.textAlign || 'right'
   );
   const [direction, setDirection] = useState<'rtl' | 'ltr'>(initialDocument.direction || 'rtl');
+  const isUrdu = direction === 'rtl';
+  const lang: 'urdu' | 'english' = direction === 'rtl' ? 'urdu' : 'english';
   const [pageSize, setPageSize] = useState<PageSize>((initialDocument.pageSize as PageSize) || 'A4');
   
   // Custom dimensions state (for dynamic resizing)
@@ -168,8 +174,18 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   const [imageShadow, setImageShadow] = useState<boolean>(true);
   const [imageBorder, setImageBorder] = useState<boolean>(false);
 
+  // Document Element Selection State (Lines, Shapes, SVGs, Dividers)
+  const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
+
   // Gallery Save Preview Modal
   const [galleryModalImage, setGalleryModalImage] = useState<string | null>(null);
+
+  // Translation & Auto Grammar Correction State (Urdu <-> English)
+  const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false);
+  const [translationSourceText, setTranslationSourceText] = useState('');
+  const [isTranslationSelectionScope, setIsTranslationSelectionScope] = useState(false);
+  const [isQuickTranslating, setIsQuickTranslating] = useState(false);
+  const [isTranslateDropdownOpen, setIsTranslateDropdownOpen] = useState(false);
 
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
@@ -508,6 +524,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       img.style.cursor = 'pointer';
       img.onclick = (e) => {
         e.stopPropagation();
+        setSelectedElement(null);
         setSelectedImage(img);
 
         // Read current inline styles of the image
@@ -529,23 +546,57 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     });
   }, [activeSheetDim.width]);
 
+  // Document Elements Selection Listener (Lines, Shapes, SVGs, Dividers)
+  const attachElementListeners = useCallback(() => {
+    if (!editorRef.current) return;
+    const elements = editorRef.current.querySelectorAll<HTMLElement>(
+      '.doc-element-block, .doc-element-inline, [data-doc-element="true"], [data-element-type="line"], hr, .doc-line-inner'
+    );
+    elements.forEach((el) => {
+      const targetBlock = (el.closest('.doc-element-block') as HTMLElement) || el;
+      targetBlock.style.cursor = 'pointer';
+      targetBlock.onclick = (e) => {
+        e.stopPropagation();
+        if (selectedImage) {
+          selectedImage.style.outline = 'none';
+          setSelectedImage(null);
+        }
+        setSelectedElement(targetBlock);
+      };
+    });
+  }, [selectedImage]);
+
   useEffect(() => {
     attachImageListeners();
-  }, [attachImageListeners]);
+    attachElementListeners();
+  }, [attachImageListeners, attachElementListeners]);
 
-  // Click outside to deselect image outline
+  // Click outside to deselect image or element outline
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('#image-inspector-panel') && target.tagName !== 'IMG') {
+      if (
+        !target.closest('#canva-element-selection-overlay') &&
+        !target.closest('.doc-element-block') &&
+        !target.closest('.doc-element-inline') &&
+        !target.closest('[data-doc-element="true"]') &&
+        target.tagName !== 'HR' &&
+        target.tagName !== 'svg'
+      ) {
+        setSelectedElement(null);
+      }
+      if (!target.closest('#image-inspector-panel') && !target.closest('#canva-image-selection-overlay') && target.tagName !== 'IMG') {
         if (selectedImage) {
           selectedImage.style.outline = 'none';
         }
         setSelectedImage(null);
       }
+      if (!target.closest('#toolbar-btn-translate-dropdown-toggle') && !target.closest('#toolbar-btn-quick-auto-translate')) {
+        setIsTranslateDropdownOpen(false);
+      }
     };
-    document.addEventListener('click', handleOutsideClick);
-    return () => document.removeEventListener('click', handleOutsideClick);
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [selectedImage]);
 
   // Update selected image styling when controls change
@@ -680,6 +731,113 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         description: 'New copy inserted.'
       });
     }, 50);
+  };
+
+  // Move Image Up / Down in document order
+  const handleMoveImageUp = () => {
+    if (!selectedImage) return;
+    const targetBlock = (selectedImage.closest('p, div.doc-element-block, div') as HTMLElement) || selectedImage;
+    const prev = targetBlock.previousElementSibling as HTMLElement | null;
+    if (prev && targetBlock.parentElement) {
+      targetBlock.parentElement.insertBefore(targetBlock, prev);
+      targetBlock.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      recalculatePagination();
+      onShowToast({
+        type: 'info',
+        title: 'تصویر اوپر منتقل ہوئی',
+        description: 'تصویر کو اوپر والے پیراگراف کے اوپر کر دیا گیا'
+      });
+    }
+  };
+
+  const handleMoveImageDown = () => {
+    if (!selectedImage) return;
+    const targetBlock = (selectedImage.closest('p, div.doc-element-block, div') as HTMLElement) || selectedImage;
+    const next = targetBlock.nextElementSibling as HTMLElement | null;
+    if (next && targetBlock.parentElement) {
+      targetBlock.parentElement.insertBefore(targetBlock, next.nextElementSibling);
+      targetBlock.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      recalculatePagination();
+      onShowToast({
+        type: 'info',
+        title: 'تصویر نیچے منتقل ہوئی',
+        description: 'تصویر کو نیچے والے پیراگراف کے نیچے کر دیا گیا'
+      });
+    }
+  };
+
+  // Element actions: Delete, Duplicate, Move Up, Move Down
+  const handleDeleteSelectedElement = () => {
+    if (selectedElement) {
+      selectedElement.remove();
+      setSelectedElement(null);
+      recalculatePagination();
+      onShowToast({
+        type: 'info',
+        title: 'عنصر حذف ہو گیا',
+        description: 'منتخب کردہ لکیر / عنصر کو دستاویز سے ہٹا دیا گیا ہے'
+      });
+    }
+  };
+
+  const handleDuplicateSelectedElement = () => {
+    if (!selectedElement || !editorRef.current) return;
+    const clone = selectedElement.cloneNode(true) as HTMLElement;
+    selectedElement.parentNode?.insertBefore(clone, selectedElement.nextSibling);
+    setTimeout(() => {
+      attachElementListeners();
+      setSelectedElement(clone);
+      recalculatePagination();
+      onShowToast({
+        type: 'success',
+        title: 'کاپی شامل کر دی گئی',
+        description: 'لکیر / عنصر کی نئی کاپی تیار کر دی گئی ہے'
+      });
+    }, 50);
+  };
+
+  const handleMoveElementUp = () => {
+    if (!selectedElement) return;
+    const targetBlock = (selectedElement.closest('.doc-element-block') as HTMLElement) || selectedElement;
+    const prev = targetBlock.previousElementSibling as HTMLElement | null;
+    if (prev && targetBlock.parentElement) {
+      targetBlock.parentElement.insertBefore(targetBlock, prev);
+      targetBlock.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      recalculatePagination();
+      onShowToast({
+        type: 'info',
+        title: isUrdu ? 'اوپر منتقل ہوا' : 'Moved Up',
+        description: isUrdu ? 'عنصر / لکیر کو اوپر والے حصے پر منتقل کر دیا گیا' : 'Element moved up'
+      });
+    } else {
+      onShowToast({
+        type: 'info',
+        title: isUrdu ? 'سب سے اوپر' : 'Already at Top',
+        description: isUrdu ? 'یہ عنصر پہلے ہی صفحے کے سب سے اوپر ہے' : 'Element is already at the top'
+      });
+    }
+  };
+
+  const handleMoveElementDown = () => {
+    if (!selectedElement) return;
+    const targetBlock = (selectedElement.closest('.doc-element-block') as HTMLElement) || selectedElement;
+    const next = targetBlock.nextElementSibling as HTMLElement | null;
+    if (next && targetBlock.parentElement) {
+      targetBlock.parentElement.insertBefore(targetBlock, next.nextElementSibling);
+      targetBlock.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      recalculatePagination();
+      onShowToast({
+        type: 'info',
+        title: isUrdu ? 'نیچے منتقل ہوا' : 'Moved Down',
+        description: isUrdu ? 'عنصر / لکیر کو نیچے والے حصے پر منتقل کر دیا گیا' : 'Element moved down'
+      });
+    } else {
+      onShowToast({
+        type: 'info',
+        title: isUrdu ? 'سب سے نیچے' : 'Already at Bottom',
+        description: isUrdu ? 'یہ عنصر پہلے ہی سب سے نیچے ہے' : 'Element is already at the bottom'
+      });
+    }
   };
 
   // Generic document command executor
@@ -821,10 +979,24 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           editorRef.current.appendChild(div.firstChild);
         }
       }
+      setTimeout(() => {
+        attachElementListeners();
+        attachImageListeners();
+        if (editorRef.current) {
+          const allElements = editorRef.current.querySelectorAll<HTMLElement>(
+            '.doc-element-block, [data-doc-element="true"]'
+          );
+          if (allElements.length > 0) {
+            const lastEl = allElements[allElements.length - 1];
+            setSelectedElement(lastEl);
+          }
+        }
+        recalculatePagination();
+      }, 60);
     } else {
       document.execCommand('insertText', false, text);
+      setTimeout(recalculatePagination, 50);
     }
-    setTimeout(recalculatePagination, 50);
   };
 
   const handleInsertPoetry = (
@@ -886,6 +1058,170 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         lastBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 100);
+  };
+
+  // Quick AI Urdu <-> English Translation and Auto Grammar Correction
+  const handleQuickTranslate = async (mode: TranslationMode = 'auto') => {
+    setIsTranslateDropdownOpen(false);
+    if (!editorRef.current) return;
+
+    // Check if there is an active selection in the editor
+    const sel = window.getSelection();
+    let selectedText = '';
+    let selectedRange: Range | null = null;
+
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editorRef.current.contains(sel.anchorNode)) {
+      selectedRange = sel.getRangeAt(0);
+      selectedText = sel.toString().trim();
+    } else if (savedSelectionRef.current && !savedSelectionRef.current.collapsed) {
+      selectedRange = savedSelectionRef.current;
+      selectedText = savedSelectionRef.current.toString().trim();
+    }
+
+    const hasSelection = Boolean(selectedText && selectedRange);
+    const textToProcess = hasSelection ? selectedText : editorRef.current.innerText.trim();
+
+    if (!textToProcess) {
+      onShowToast({
+        type: 'info',
+        title: lang === 'urdu' ? 'کوئی تحریر موجود نہیں' : 'No text found',
+        description: lang === 'urdu' ? 'برائے مہربانی پہلے کچھ لکھیں یا منتخب کریں۔' : 'Please type or select some text first.'
+      });
+      return;
+    }
+
+    setIsQuickTranslating(true);
+    onShowToast({
+      type: 'info',
+      title: lang === 'urdu' ? '⚡ AI ترجمہ اور تصحیح جاری ہے...' : '⚡ AI translating & correcting...',
+      description: lang === 'urdu' ? 'تحریر کو دوسری زبان میں تبدیل اور املا درست کیا جا رہا ہے...' : 'Translating between Urdu and English with grammar fixes...'
+    });
+
+    try {
+      const response = await fetch('/api/translate-correct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: hasSelection ? textToProcess : editorRef.current.innerHTML,
+          mode,
+          preserveHtml: !hasSelection
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to translate');
+      }
+
+      const resData = data.data;
+      const resultText = resData.result;
+      const targetDir: 'ltr' | 'rtl' =
+        resData.direction === 'rtl' || resData.targetLanguage === 'Urdu' || /[\u0600-\u06FF]/.test(resultText)
+          ? 'rtl'
+          : 'ltr';
+      const targetFont = targetDir === 'rtl' ? 'font-nastaliq' : 'font-sans-custom';
+
+      if (hasSelection && selectedRange) {
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(selectedRange);
+        }
+        document.execCommand('insertText', false, resultText);
+      } else {
+        if (resultText.includes('<') && resultText.includes('>')) {
+          editorRef.current.innerHTML = resultText;
+        } else {
+          const paragraphs = resultText
+            .split(/\n+/)
+            .filter(Boolean)
+            .map((p: string) => `<p>${p}</p>`)
+            .join('');
+          editorRef.current.innerHTML = paragraphs || `<p>${resultText}</p>`;
+        }
+        setDirection(targetDir);
+        setFontFamily(targetFont);
+      }
+
+      recalculatePagination();
+
+      onShowToast({
+        type: 'success',
+        title: lang === 'urdu' ? '✅ ترجمہ اور تصحیح مکمل ہو گئی!' : '✅ Translation & correction complete!',
+        description: resData.summary || (lang === 'urdu' ? `${resData.targetLanguage} میں خودکار تبدیل اور درست کر دیا گیا۔` : `Successfully converted to ${resData.targetLanguage} with grammar fixes.`)
+      });
+    } catch (err: any) {
+      console.error('Quick translate error:', err);
+      onShowToast({
+        type: 'error',
+        title: lang === 'urdu' ? 'ترجمہ ناکام رہا' : 'Translation failed',
+        description: err?.message || (lang === 'urdu' ? 'AI سے رابطہ نہ ہو سکا، دوبارہ کوشش کریں۔' : 'Could not contact AI service. Please retry.')
+      });
+    } finally {
+      setIsQuickTranslating(false);
+    }
+  };
+
+  const handleOpenTranslationModal = () => {
+    setIsTranslateDropdownOpen(false);
+    const sel = window.getSelection();
+    let selectedText = '';
+
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editorRef.current?.contains(sel.anchorNode)) {
+      selectedText = sel.toString().trim();
+      savedSelectionRef.current = sel.getRangeAt(0).cloneRange();
+    } else if (savedSelectionRef.current && !savedSelectionRef.current.collapsed) {
+      selectedText = savedSelectionRef.current.toString().trim();
+    }
+
+    if (selectedText) {
+      setTranslationSourceText(selectedText);
+      setIsTranslationSelectionScope(true);
+    } else {
+      setTranslationSourceText(editorRef.current?.innerText.trim() || '');
+      setIsTranslationSelectionScope(false);
+    }
+    setIsTranslationModalOpen(true);
+  };
+
+  const handleApplyTranslationModal = (
+    convertedText: string,
+    targetDir: 'ltr' | 'rtl',
+    targetFont?: string
+  ) => {
+    if (!editorRef.current) return;
+
+    if (isTranslationSelectionScope && savedSelectionRef.current) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedSelectionRef.current);
+      }
+      document.execCommand('insertText', false, convertedText);
+    } else {
+      if (convertedText.includes('<') && convertedText.includes('>')) {
+        editorRef.current.innerHTML = convertedText;
+      } else {
+        const paragraphs = convertedText
+          .split(/\n+/)
+          .filter(Boolean)
+          .map((p) => `<p>${p}</p>`)
+          .join('');
+        editorRef.current.innerHTML = paragraphs || `<p>${convertedText}</p>`;
+      }
+      setDirection(targetDir);
+      if (targetFont) {
+        setFontFamily(targetFont);
+      }
+    }
+
+    recalculatePagination();
+
+    onShowToast({
+      type: 'success',
+      title: lang === 'urdu' ? 'تحریر لاگو کر دی گئی!' : 'Text applied to document!',
+      description: lang === 'urdu' ? 'ترجمہ اور درستی کامیابی سے شامل کر دی گئی۔' : 'Translation and correction applied.'
+    });
   };
 
   const handleFontFamilyChange = (fontClass: string) => {
@@ -1430,6 +1766,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       selectedImage.style.outline = 'none';
       setSelectedImage(null);
     }
+    if (selectedElement) {
+      setSelectedElement(null);
+    }
     if (window.getSelection) {
       window.getSelection()?.removeAllRanges();
     }
@@ -1631,6 +1970,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       selectedImage.style.outline = 'none';
       setSelectedImage(null);
     }
+    if (selectedElement) {
+      setSelectedElement(null);
+    }
 
     onShowToast({
       type: 'info',
@@ -1825,8 +2167,18 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             />
           </div>
 
-          {/* Right Action Buttons: Copy, Save, Direct Download */}
+          {/* Right Action Buttons: Translate, Copy, Save, Direct Download */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <button
+              id="editor-btn-quick-translate"
+              onClick={handleOpenTranslationModal}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl shadow-2xs transition active:scale-98"
+              title={lang === 'urdu' ? 'اردو اور انگلش کا خودکار ترجمہ و درستی' : 'Auto Urdu & English Translation & Correction'}
+            >
+              <Languages className="w-4 h-4 text-blue-600" />
+              <span className="hidden md:inline">{lang === 'urdu' ? 'ترجمہ و درستی' : 'Translate'}</span>
+            </button>
+
             <button
               id="editor-btn-copy"
               onClick={handleCopy}
@@ -1904,6 +2256,135 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             <span>🇬🇧</span>
             <span>English</span>
           </button>
+        </div>
+
+        {/* Divider */}
+        <div className="h-6 w-[1px] bg-gray-200 shrink-0" />
+
+        {/* Smart AI Urdu ⇄ English Translation & Auto-Correction */}
+        <div className="relative shrink-0 flex items-center">
+          <div className="inline-flex rounded-lg shadow-2xs border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-0.5">
+            <button
+              id="toolbar-btn-quick-auto-translate"
+              type="button"
+              disabled={isQuickTranslating}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => handleQuickTranslate('auto')}
+              className="px-2.5 py-1 text-xs font-bold rounded-md bg-white hover:bg-blue-600 hover:text-white text-blue-700 transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              title={
+                lang === 'urdu'
+                  ? '⚡ خودکار اردو ⇄ انگلش ترجمہ و درستی (1-کلک)'
+                  : '⚡ Auto Urdu ⇄ English Convert & Correct (1-Click)'
+              }
+            >
+              {isQuickTranslating ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                  <span className="hidden sm:inline">{lang === 'urdu' ? 'درستی جاری ہے...' : 'Converting...'}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{lang === 'urdu' ? '⚡ اردو ⇄ انگلش ترجمہ و درستی' : '⚡ Urdu ⇄ English Convert'}</span>
+                </>
+              )}
+            </button>
+
+            <button
+              id="toolbar-btn-translate-dropdown-toggle"
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => setIsTranslateDropdownOpen((prev) => !prev)}
+              className="px-1.5 py-1 text-blue-700 hover:bg-blue-100 rounded-md transition flex items-center justify-center"
+              title={lang === 'urdu' ? 'مزید ترجمہ کے اختیارات' : 'More translation options'}
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Translation Dropdown Menu */}
+          {isTranslateDropdownOpen && (
+            <div
+              className={`absolute top-full mt-1.5 z-40 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 text-xs text-gray-700 animate-in fade-in slide-in-from-top-1 ${
+                lang === 'urdu' ? 'right-0' : 'left-0'
+              }`}
+            >
+              <div className="px-3 py-1.5 border-b border-gray-100 text-2xs font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                <span>{lang === 'urdu' ? 'ترجمہ اور خودکار املا درستی' : 'Translation & Auto Correct'}</span>
+                <span className="bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded font-semibold text-3xs">Gemini AI</span>
+              </div>
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleQuickTranslate('auto')}
+                className="w-full text-start px-3 py-2 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 transition font-medium"
+              >
+                <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="font-bold">{lang === 'urdu' ? '⚡ خودکار شناخت و ترجمہ (Auto)' : '⚡ Auto Detect & Convert'}</span>
+                  <span className="text-3xs text-gray-400">{lang === 'urdu' ? 'اردو کو انگلش یا انگلش کو اردو کرے گا' : 'Converts Urdu to English or vice versa'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleQuickTranslate('urdu_to_english')}
+                className="w-full text-start px-3 py-2 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2 transition font-medium"
+              >
+                <span className="text-sm">🇵🇰 ➔ 🇬🇧</span>
+                <div className="flex flex-col">
+                  <span className="font-bold">{lang === 'urdu' ? 'اردو سے انگریزی (Urdu ➔ English)' : 'Urdu to English'}</span>
+                  <span className="text-3xs text-gray-400">{lang === 'urdu' ? 'املا اور گرامر درست کر کے انگلش بنائے گا' : 'Translate and fix grammar in English'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleQuickTranslate('english_to_urdu')}
+                className="w-full text-start px-3 py-2 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2 transition font-medium"
+              >
+                <span className="text-sm">🇬🇧 ➔ 🇵🇰</span>
+                <div className="flex flex-col">
+                  <span className="font-bold">{lang === 'urdu' ? 'انگریزی سے اردو (English ➔ Urdu)' : 'English to Urdu'}</span>
+                  <span className="text-3xs text-gray-400">{lang === 'urdu' ? 'خالص نستعلیق اردو میں ترجمہ اور درستی' : 'Translate to authentic Urdu Nastaliq'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleQuickTranslate('correct_only')}
+                className="w-full text-start px-3 py-2 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2 transition font-medium"
+              >
+                <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="font-bold">{lang === 'urdu' ? 'صرف املا و گرامر درست کریں' : 'Proofread & Correct'}</span>
+                  <span className="text-3xs text-gray-400">{lang === 'urdu' ? 'زبان بدلے بغیر غلطیاں ٹھیک کرے گا' : 'Fix spelling and grammar in place'}</span>
+                </div>
+              </button>
+
+              <div className="border-t border-gray-100 my-1" />
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleOpenTranslationModal}
+                className="w-full text-start px-3 py-2 hover:bg-gray-100 flex items-center gap-2 transition font-bold text-gray-800"
+              >
+                <Languages className="w-4 h-4 text-gray-600 shrink-0" />
+                <span>{lang === 'urdu' ? '⚙️ ترجمہ اسٹوڈیو کھولیں (Full Panel)' : '⚙️ Open Translation Studio'}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Divider */}
@@ -2280,6 +2761,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       <div className="flex-1 flex overflow-hidden relative">
         {/* Canva-style LEFT Vertical Sidebar Dock & Expandable Flyout Panel */}
         <CanvaSidebar
+          lang={direction === 'rtl' ? 'urdu' : 'english'}
           activeTab={canvaSidebarTab}
           setActiveTab={setCanvaSidebarTab}
           onApplyTemplate={handleApplyTemplate}
@@ -2356,9 +2838,27 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             }}
             onDelete={handleDeleteSelectedImage}
             onDuplicate={handleDuplicateSelectedImage}
+            onMoveUp={handleMoveImageUp}
+            onMoveDown={handleMoveImageDown}
             onUpdate={() => {
               recalculatePagination();
             }}
+            lang={isUrdu ? 'urdu' : 'english'}
+          />
+
+          {/* Canva Interactive Element Selection & Resize/Stretch Overlay (Lines, Shapes, Dividers) */}
+          <CanvaElementOverlay
+            selectedElement={selectedElement}
+            workspaceRef={workspaceScrollRef}
+            onDeselect={() => setSelectedElement(null)}
+            onDelete={handleDeleteSelectedElement}
+            onDuplicate={handleDuplicateSelectedElement}
+            onMoveUp={handleMoveElementUp}
+            onMoveDown={handleMoveElementDown}
+            onUpdate={() => {
+              recalculatePagination();
+            }}
+            lang={isUrdu ? 'urdu' : 'english'}
           />
 
           {/* Sticky Top Image Inspector Panel (Quick Access for Resize & Alignment) */}
@@ -2374,10 +2874,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                     <ImageIcon className="w-3.5 h-3.5" />
                   </div>
                   <span className="font-bold text-gray-900 text-xs sm:text-sm">
-                    تصویر کے کنٹرولز (Image Controls)
+                    {isUrdu ? 'تصویر کے کنٹرولز' : 'Image Controls'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-[#3b5bfd] font-bold font-mono text-[11px] border border-indigo-200">
-                    سائز: {imageWidthPercent}%
+                    {isUrdu ? 'سائز:' : 'Size:'} {imageWidthPercent}%
                   </span>
                 </div>
 
@@ -2386,19 +2886,19 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                     type="button"
                     onClick={handleDuplicateSelectedImage}
                     className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-indigo-50 text-gray-700 hover:text-[#3b5bfd] font-medium text-[11px] border border-slate-200 flex items-center gap-1 transition cursor-pointer"
-                    title="تصویر کی کاپی بنائیں (Duplicate)"
+                    title={isUrdu ? 'تصویر کی کاپی بنائیں' : 'Duplicate Image'}
                   >
                     <Copy className="w-3 h-3 text-[#3b5bfd]" />
-                    <span>کاپی</span>
+                    <span>{isUrdu ? 'کاپی' : 'Copy'}</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleDeleteSelectedImage}
                     className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 font-medium text-[11px] border border-red-200 flex items-center gap-1 transition cursor-pointer"
-                    title="تصویر حذف کریں (Delete)"
+                    title={isUrdu ? 'تصویر حذف کریں' : 'Delete Image'}
                   >
                     <Trash2 className="w-3 h-3 text-red-600" />
-                    <span>حذف</span>
+                    <span>{isUrdu ? 'حذف' : 'Delete'}</span>
                   </button>
                   <button
                     type="button"
@@ -2407,20 +2907,20 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                       setSelectedImage(null);
                     }}
                     className="p-1 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer"
-                    title="بند کریں (Deselect)"
+                    title={isUrdu ? 'بند کریں' : 'Close'}
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Controls Grid: 1. Size (چھوٹا / بڑا کریں) & 2. Alignment (بائیں / درمیان / دائیں) */}
+              {/* Controls Grid: 1. Size & 2. Alignment */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 1. Size Controls (چھوٹا / بڑا کریں) */}
+                {/* 1. Size Controls */}
                 <div className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-gray-800 text-[11px]">
-                      سائز چھوٹا / بڑا کریں (Resize Image):
+                      {isUrdu ? 'سائز چھوٹا / بڑا کریں:' : 'Resize Image:'}
                     </span>
                     <span className="text-[10px] text-[#3b5bfd] font-bold font-mono">
                       {imageWidthPercent}%
@@ -2433,7 +2933,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                       type="button"
                       onClick={() => handleImageWidthChange(imageWidthPercent - 5)}
                       className="w-7 h-7 rounded-lg bg-white hover:bg-indigo-50 hover:text-[#3b5bfd] border border-slate-200 flex items-center justify-center text-gray-700 font-bold transition active:scale-95 shrink-0 cursor-pointer"
-                      title="چھوٹا کریں (Smaller -5%)"
+                      title={isUrdu ? 'چھوٹا کریں (-5%)' : 'Smaller (-5%)'}
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
@@ -2450,7 +2950,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                       type="button"
                       onClick={() => handleImageWidthChange(imageWidthPercent + 5)}
                       className="w-7 h-7 rounded-lg bg-white hover:bg-indigo-50 hover:text-[#3b5bfd] border border-slate-200 flex items-center justify-center text-gray-700 font-bold transition active:scale-95 shrink-0 cursor-pointer"
-                      title="بڑا کریں (Bigger +5%)"
+                      title={isUrdu ? 'بڑا کریں (+5%)' : 'Bigger (+5%)'}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -2458,12 +2958,12 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
 
                   {/* Quick Size Presets */}
                   <div className="flex items-center gap-1.5 pt-0.5">
-                    <span className="text-[10px] text-gray-500">فوری:</span>
+                    <span className="text-[10px] text-gray-500">{isUrdu ? 'فوری:' : 'Quick:'}</span>
                     {[
-                      { pct: 25, label: '25% چھوٹا' },
-                      { pct: 50, label: '50% آدھا' },
-                      { pct: 75, label: '75% بڑا' },
-                      { pct: 100, label: '100% پورا' }
+                      { pct: 25, label: isUrdu ? '25% چھوٹا' : '25% Small' },
+                      { pct: 50, label: isUrdu ? '50% آدھا' : '50% Half' },
+                      { pct: 75, label: isUrdu ? '75% بڑا' : '75% Large' },
+                      { pct: 100, label: isUrdu ? '100% پورا' : '100% Full' }
                     ].map((preset) => (
                       <button
                         key={preset.pct}
@@ -2481,14 +2981,22 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                   </div>
                 </div>
 
-                {/* 2. Alignment Controls (بائیں جانب / درمیان / دائیں جانب) */}
+                {/* 2. Alignment Controls */}
                 <div className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-gray-800 text-[11px]">
-                      مقام و الائنمنٹ (Left / Center / Right):
+                      {isUrdu ? 'مقام و الائنمنٹ:' : 'Position & Alignment:'}
                     </span>
                     <span className="text-[10px] text-[#3b5bfd] font-semibold">
-                      {imageAlignment === 'left' ? 'بائیں جانب (Left)' : imageAlignment === 'center' ? 'درمیان (Center)' : imageAlignment === 'right' ? 'دائیں جانب (Right)' : imageAlignment === 'float-left' ? 'بائیں بہاؤ' : 'دائیں بہاؤ'}
+                      {imageAlignment === 'left'
+                        ? (isUrdu ? 'بائیں جانب' : 'Left')
+                        : imageAlignment === 'center'
+                        ? (isUrdu ? 'درمیان' : 'Center')
+                        : imageAlignment === 'right'
+                        ? (isUrdu ? 'دائیں جانب' : 'Right')
+                        : imageAlignment === 'float-left'
+                        ? (isUrdu ? 'بائیں بہاؤ' : 'Float Left')
+                        : (isUrdu ? 'دائیں بہاؤ' : 'Float Right')}
                     </span>
                   </div>
 
@@ -2502,10 +3010,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                           ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] shadow-xs'
                           : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50 hover:text-[#3b5bfd]'
                       }`}
-                      title="بائیں جانب لے جائیں (Align Left - Move to Left Side)"
+                      title={isUrdu ? 'بائیں جانب لے جائیں' : 'Align Left'}
                     >
                       <AlignLeft className="w-3.5 h-3.5" />
-                      <span>بائیں (Left)</span>
+                      <span>{isUrdu ? 'بائیں' : 'Left'}</span>
                     </button>
 
                     <button
@@ -2516,10 +3024,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                           ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] shadow-xs'
                           : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50 hover:text-[#3b5bfd]'
                       }`}
-                      title="درمیان میں رکھیں (Align Center)"
+                      title={isUrdu ? 'درمیان میں رکھیں' : 'Align Center'}
                     >
                       <AlignCenter className="w-3.5 h-3.5" />
-                      <span>درمیان</span>
+                      <span>{isUrdu ? 'درمیان' : 'Center'}</span>
                     </button>
 
                     <button
@@ -2530,16 +3038,16 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                           ? 'bg-[#3b5bfd] text-white border-[#3b5bfd] shadow-xs'
                           : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50 hover:text-[#3b5bfd]'
                       }`}
-                      title="دائیں جانب رکھیں (Align Right)"
+                      title={isUrdu ? 'دائیں جانب رکھیں' : 'Align Right'}
                     >
                       <AlignRight className="w-3.5 h-3.5" />
-                      <span>دائیں</span>
+                      <span>{isUrdu ? 'دائیں' : 'Right'}</span>
                     </button>
                   </div>
 
                   {/* Text-wrap / Float Options */}
                   <div className="flex items-center gap-1.5 pt-0.5">
-                    <span className="text-[10px] text-gray-500">بہاؤ:</span>
+                    <span className="text-[10px] text-gray-500">{isUrdu ? 'بہاؤ:' : 'Flow:'}</span>
                     <button
                       type="button"
                       onClick={() => handleImageAlignmentChange('float-left')}
@@ -2548,9 +3056,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                           ? 'bg-[#3b5bfd] text-white border-[#3b5bfd]'
                           : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50'
                       }`}
-                      title="متن تصویر کے دائیں جانب بہے گا (Float Left)"
+                      title={isUrdu ? 'متن تصویر کے دائیں جانب بہے گا' : 'Text wraps to the right of image'}
                     >
-                      متن بائیں بہاؤ
+                      {isUrdu ? 'متن بائیں بہاؤ' : 'Float Left'}
                     </button>
                     <button
                       type="button"
@@ -2560,9 +3068,9 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                           ? 'bg-[#3b5bfd] text-white border-[#3b5bfd]'
                           : 'bg-white text-gray-700 border-slate-200 hover:bg-indigo-50'
                       }`}
-                      title="متن تصویر کے بائیں جانب بہے گا (Float Right)"
+                      title={isUrdu ? 'متن تصویر کے بائیں جانب بہے گا' : 'Text wraps to the left of image'}
                     >
-                      متن دائیں بہاؤ
+                      {isUrdu ? 'متن دائیں بہاؤ' : 'Float Right'}
                     </button>
                   </div>
                 </div>
@@ -2571,13 +3079,13 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               {/* Style & Effects: Corners & Shadow */}
               <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 flex-wrap">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-gray-600 font-semibold">کونے:</span>
+                  <span className="text-[10px] text-gray-600 font-semibold">{isUrdu ? 'کونے:' : 'Corners:'}</span>
                   {([
-                    { id: 'none', label: 'سیدھے' },
-                    { id: 'sm', label: 'ہلکے' },
-                    { id: 'md', label: 'معیاری' },
-                    { id: 'lg', label: 'گول' },
-                    { id: 'full', label: 'دائرہ' }
+                    { id: 'none', label: isUrdu ? 'سیدھے' : 'None' },
+                    { id: 'sm', label: isUrdu ? 'ہلکے' : 'Small' },
+                    { id: 'md', label: isUrdu ? 'معیاری' : 'Medium' },
+                    { id: 'lg', label: isUrdu ? 'گول' : 'Large' },
+                    { id: 'full', label: isUrdu ? 'دائرہ' : 'Circle' }
                   ] as const).map((r) => (
                     <button
                       key={r.id}
@@ -2604,8 +3112,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                         : 'bg-white text-gray-700 border-slate-200 hover:bg-gray-50'
                     }`}
                   >
-                    <span>سایہ:</span>
-                    <span>{imageShadow ? 'آن' : 'بند'}</span>
+                    <span>{isUrdu ? 'سایہ:' : 'Shadow:'}</span>
+                    <span>{imageShadow ? (isUrdu ? 'آن' : 'On') : (isUrdu ? 'بند' : 'Off')}</span>
                   </button>
 
                   <button
@@ -2617,8 +3125,8 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
                         : 'bg-white text-gray-700 border-slate-200 hover:bg-gray-50'
                     }`}
                   >
-                    <span>بارڈر:</span>
-                    <span>{imageBorder ? 'آن' : 'بند'}</span>
+                    <span>{isUrdu ? 'بارڈر:' : 'Border:'}</span>
+                    <span>{imageBorder ? (isUrdu ? 'آن' : 'On') : (isUrdu ? 'بند' : 'Off')}</span>
                   </button>
                 </div>
               </div>
@@ -3843,6 +4351,16 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             description: `Text color set to ${color} for contrast`
           });
         }}
+      />
+
+      {/* 15. Smart Translation and Auto-Correction Modal (اردو ⇄ انگلش ترجمہ و خودکار درستی) */}
+      <TranslationModal
+        isOpen={isTranslationModalOpen}
+        onClose={() => setIsTranslationModalOpen(false)}
+        sourceText={translationSourceText}
+        isSelectionScope={isTranslationSelectionScope}
+        onApply={handleApplyTranslationModal}
+        lang={lang}
       />
     </div>
   );

@@ -73,11 +73,11 @@ export function getSvgStyle(color: string, mode: ShapeStyleMode, defaultFill = t
 }
 
 // Helper to create wrapper for document insertion
-export function wrapElementBlock(innerSvgOrHtml: string, align: 'center' | 'inline' = 'center') {
+export function wrapElementBlock(innerSvgOrHtml: string, align: 'center' | 'inline' = 'center', extraAttrs: string = '') {
   if (align === 'inline') {
-    return `<span class="doc-element-inline" contenteditable="false" style="display: inline-block; vertical-align: middle; margin: 0 4px; user-select: none;">${innerSvgOrHtml}</span>&nbsp;`;
+    return `<span class="doc-element-inline" data-doc-element="true" contenteditable="false" style="display: inline-block; vertical-align: middle; margin: 0 4px; user-select: none; cursor: pointer;" ${extraAttrs}>${innerSvgOrHtml}</span>&nbsp;`;
   }
-  return `<div class="doc-element-block" contenteditable="false" style="text-align: center; margin: 16px auto; user-select: none; display: flex; justify-content: center; align-items: center;">${innerSvgOrHtml}</div><p><br></p>`;
+  return `<div class="doc-element-block" data-doc-element="true" contenteditable="false" style="text-align: center; margin: 16px auto; user-select: none; display: flex; justify-content: center; align-items: center; cursor: pointer;" ${extraAttrs}>${innerSvgOrHtml}</div><p><br></p>`;
 }
 
 // -------------------------------------------------------------
@@ -520,8 +520,8 @@ export const ALL_ELEMENTS: ElementItem[] = [
     type: 'svg',
     getHtml: (color) => {
       return wrapElementBlock(`
-        <div style="width: 100%; max-width: 450px; height: 3px; background-color: ${color}; border-radius: 2px; margin: 16px auto;"></div>
-      `);
+        <div class="doc-line-inner" data-element-type="line" data-line-style="solid" style="width: 380px; max-width: 100%; height: 3px; background-color: ${color}; border-radius: 2px; margin: 16px auto; transition: width 0.15s ease;"></div>
+      `, 'center', 'data-element-type="line"');
     },
     renderPreview: (color) => (
       <div className="w-full flex items-center justify-center h-full px-2">
@@ -540,8 +540,8 @@ export const ALL_ELEMENTS: ElementItem[] = [
     type: 'svg',
     getHtml: (color) => {
       return wrapElementBlock(`
-        <div style="width: 100%; max-width: 450px; border-bottom: 2.5px dashed ${color}; margin: 16px auto;"></div>
-      `);
+        <div class="doc-line-inner" data-element-type="line" data-line-style="dashed" style="width: 380px; max-width: 100%; border-bottom: 2.5px dashed ${color}; margin: 16px auto; transition: width 0.15s ease;"></div>
+      `, 'center', 'data-element-type="line"');
     },
     renderPreview: (color) => (
       <div className="w-full flex items-center justify-center h-full px-2">
@@ -560,8 +560,8 @@ export const ALL_ELEMENTS: ElementItem[] = [
     type: 'svg',
     getHtml: (color) => {
       return wrapElementBlock(`
-        <div style="width: 100%; max-width: 450px; border-bottom: 3px dotted ${color}; margin: 16px auto;"></div>
-      `);
+        <div class="doc-line-inner" data-element-type="line" data-line-style="dotted" style="width: 380px; max-width: 100%; border-bottom: 3px dotted ${color}; margin: 16px auto; transition: width 0.15s ease;"></div>
+      `, 'center', 'data-element-type="line"');
     },
     renderPreview: (color) => (
       <div className="w-full flex items-center justify-center h-full px-2">
@@ -580,8 +580,8 @@ export const ALL_ELEMENTS: ElementItem[] = [
     type: 'svg',
     getHtml: (color) => {
       return wrapElementBlock(`
-        <div style="width: 100%; max-width: 450px; border-bottom: 4px double ${color}; margin: 16px auto;"></div>
-      `);
+        <div class="doc-line-inner" data-element-type="line" data-line-style="double" style="width: 380px; max-width: 100%; border-bottom: 4px double ${color}; margin: 16px auto; transition: width 0.15s ease;"></div>
+      `, 'center', 'data-element-type="line"');
     },
     renderPreview: (color) => (
       <div className="w-full flex items-center justify-center h-full px-2">

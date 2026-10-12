@@ -91,6 +91,7 @@ interface CanvaSidebarProps {
   onDeleteSelectedImage?: () => void;
   onDuplicateSelectedImage?: () => void;
   onDeselectImage?: () => void;
+  lang?: 'urdu' | 'english';
 }
 
 // Popular Islamic & Literary Emblems and Calligraphy Symbols
@@ -174,8 +175,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
   onToggleImageBorder,
   onDeleteSelectedImage,
   onDuplicateSelectedImage,
-  onDeselectImage
+  onDeselectImage,
+  lang = 'urdu'
 }) => {
+  const isUrdu = lang === 'urdu';
   const [templateSearch, setTemplateSearch] = useState('');
   const [elementSearch, setElementSearch] = useState('');
   const [elementCategory, setElementCategory] = useState<ElementCategory>('all');
@@ -242,10 +245,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
               : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
-          title="Design Templates (ڈیزائن ٹیمپلیٹس)"
+          title={isUrdu ? 'ڈیزائن ٹیمپلیٹس' : 'Design Templates'}
         >
           <LayoutTemplate className="w-5 h-5 group-hover:scale-110 transition" />
-          <span className="text-[11px] tracking-tight leading-tight">Templates</span>
+          <span className="text-[11px] tracking-tight leading-tight">
+            {isUrdu ? 'ٹیمپلیٹس' : 'Templates'}
+          </span>
         </button>
 
         {/* Elements Tab */}
@@ -258,10 +263,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
               : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
-          title="Elements & Islamic Symbols (عناصر و علامات)"
+          title={isUrdu ? 'عناصر اور اشکال' : 'Elements & Shapes'}
         >
           <Shapes className="w-5 h-5 group-hover:scale-110 transition" />
-          <span className="text-[11px] tracking-tight leading-tight">Elements</span>
+          <span className="text-[11px] tracking-tight leading-tight">
+            {isUrdu ? 'عناصر' : 'Elements'}
+          </span>
         </button>
 
         {/* Text Tab */}
@@ -274,10 +281,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
               : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
-          title="Text & Headings (متن و خطاطی)"
+          title={isUrdu ? 'متن اور سرخیاں' : 'Text & Headings'}
         >
           <Type className="w-5 h-5 group-hover:scale-110 transition" />
-          <span className="text-[11px] tracking-tight leading-tight">Text</span>
+          <span className="text-[11px] tracking-tight leading-tight">
+            {isUrdu ? 'تحریر' : 'Text'}
+          </span>
         </button>
 
         {/* Poetry Studio Tab */}
@@ -290,11 +299,13 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
               : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
-          title="Poetry Studio (شاعری اسٹوڈیو)"
+          title={isUrdu ? 'شاعری اسٹوڈیو' : 'Poetry Studio'}
         >
           <span className="text-[10px] absolute top-1.5 right-2.5 select-none" title="Special Feature">👑</span>
           <Feather className="w-5 h-5 group-hover:scale-110 transition" />
-          <span className="text-[11px] tracking-tight leading-tight">Poetry</span>
+          <span className="text-[11px] tracking-tight leading-tight">
+            {isUrdu ? 'شاعری' : 'Poetry'}
+          </span>
         </button>
 
         {/* Uploads Tab */}
@@ -307,10 +318,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
               : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
-          title="Uploads & Images (تصاویر)"
+          title={isUrdu ? 'تصاویر اور اپلوڈ' : 'Uploads & Images'}
         >
           <UploadCloud className="w-5 h-5 group-hover:scale-110 transition" />
-          <span className="text-[11px] tracking-tight leading-tight">Uploads</span>
+          <span className="text-[11px] tracking-tight leading-tight">
+            {isUrdu ? 'تصاویر' : 'Uploads'}
+          </span>
         </button>
 
         {/* Tools Tab */}
@@ -323,10 +336,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
               : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
-          title="Tools & Keyboard (اوزار و کی بورڈ)"
+          title={isUrdu ? 'اوزار اور کی بورڈ' : 'Tools & Utilities'}
         >
           <Wrench className="w-5 h-5 group-hover:scale-110 transition" />
-          <span className="text-[11px] tracking-tight leading-tight">Tools</span>
+          <span className="text-[11px] tracking-tight leading-tight">
+            {isUrdu ? 'اوزار' : 'Tools'}
+          </span>
         </button>
 
         {/* Page / Projects Tab */}
@@ -339,10 +354,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               ? 'bg-indigo-50 text-[#3b5bfd] font-semibold border-l-4 border-[#3b5bfd]'
               : 'text-gray-600 hover:text-[#3b5bfd] hover:bg-indigo-50/50'
           }`}
-          title="Page & Frame Design (صفحہ و فریم)"
+          title={isUrdu ? 'صفحہ اور فریم ڈیزائن' : 'Page & Frame Design'}
         >
           <Palette className="w-5 h-5 group-hover:scale-110 transition" />
-          <span className="text-[11px] tracking-tight leading-tight">Page</span>
+          <span className="text-[11px] tracking-tight leading-tight">
+            {isUrdu ? 'صفحہ' : 'Page'}
+          </span>
         </button>
       </div>
 
@@ -365,19 +382,19 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
               {activeTab === 'tools' && <Wrench className="w-4 h-4 text-[#3b5bfd]" />}
               {activeTab === 'page' && <Palette className="w-4 h-4 text-[#3b5bfd]" />}
               <span className="font-bold text-gray-900 text-sm">
-                {activeTab === 'templates' && 'Templates (ٹیمپلیٹس)'}
-                {activeTab === 'elements' && 'Elements & Symbols (عناصر)'}
-                {activeTab === 'text' && 'Text & Headings (متن)'}
-                {activeTab === 'poetry' && 'Poetry Studio (شاعری)'}
-                {activeTab === 'uploads' && 'Uploads & Images (تصاویر)'}
-                {activeTab === 'tools' && 'Tools & Keyboard (اوزار)'}
-                {activeTab === 'page' && 'Page & Frame (ورق و فریم)'}
+                {activeTab === 'templates' && (isUrdu ? 'ڈیزائن ٹیمپلیٹس' : 'Design Templates')}
+                {activeTab === 'elements' && (isUrdu ? 'عناصر اور اشکال' : 'Elements & Shapes')}
+                {activeTab === 'text' && (isUrdu ? 'متن اور سرخیاں' : 'Text & Headings')}
+                {activeTab === 'poetry' && (isUrdu ? 'شاعری اسٹوڈیو' : 'Poetry Studio')}
+                {activeTab === 'uploads' && (isUrdu ? 'تصاویر اور اپلوڈ' : 'Uploads & Images')}
+                {activeTab === 'tools' && (isUrdu ? 'اوزار اور ترتیبات' : 'Tools & Utilities')}
+                {activeTab === 'page' && (isUrdu ? 'ورق اور فریم ڈیزائن' : 'Page & Frame Design')}
               </span>
             </div>
             <button
               onClick={() => setActiveTab(null)}
               className="p-1 text-gray-400 hover:text-gray-700 hover:bg-slate-200/60 rounded-lg transition cursor-pointer"
-              title="Close Drawer"
+              title={isUrdu ? 'بند کریں' : 'Close Drawer'}
             >
               <X className="w-4 h-4" />
             </button>
@@ -397,13 +414,13 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     type="text"
                     value={templateSearch}
                     onChange={(e) => setTemplateSearch(e.target.value)}
-                    placeholder="Search templates / ٹیمپلیٹ تلاش کریں..."
+                    placeholder={isUrdu ? 'ٹیمپلیٹ تلاش کریں...' : 'Search templates...'}
                     className="w-full bg-[#f4f4f4]/60 border border-[#018790]/20 rounded-xl pl-9 pr-3 py-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#00b7b5]/40 transition"
                   />
                 </div>
 
                 <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Ready-to-use Documents
+                  {isUrdu ? 'تیار شدہ دستاویزات' : 'Ready-to-use Documents'}
                 </div>
 
                 <div className="grid grid-cols-1 gap-2.5">
@@ -418,14 +435,14 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                           {t.name}
                         </div>
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#00b7b5]/15 text-[#005461] border border-[#018790]/20 shrink-0">
-                          {t.hasBorder ? 'Framed' : 'Clean'}
+                          {t.hasBorder ? (isUrdu ? 'فریم شدہ' : 'Framed') : (isUrdu ? 'سادہ' : 'Clean')}
                         </span>
                       </div>
-                      <p className="text-[11px] text-gray-500 line-clamp-2 mt-1 font-nastaliq" dir="rtl">
+                      <p className="text-[11px] text-gray-500 line-clamp-2 mt-1 font-nastaliq" dir={isUrdu ? 'rtl' : 'ltr'}>
                         {t.defaultTitle}
                       </p>
                       <div className="mt-2 pt-2 border-t border-[#018790]/15 flex items-center justify-between text-[11px] text-gray-400 group-hover:text-[#005461] font-medium">
-                        <span>Click to Apply</span>
+                        <span>{isUrdu ? 'لاگو کرنے کے لیے کلک کریں' : 'Click to Apply'}</span>
                         <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
                       </div>
                     </div>
@@ -447,7 +464,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     type="text"
                     value={elementSearch}
                     onChange={(e) => setElementSearch(e.target.value)}
-                    placeholder="Search shapes, English icons, badges... / تلاش کریں"
+                    placeholder={isUrdu ? 'عناصر، لکیریں، اشکال، علامات تلاش کریں...' : 'Search shapes, lines, icons, symbols...'}
                     className="w-full bg-[#f4f4f4]/60 border border-[#018790]/20 rounded-xl pl-9 pr-8 py-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#00b7b5]/40 transition"
                   />
                   {elementSearch && (
@@ -455,7 +472,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                       type="button"
                       onClick={() => setElementSearch('')}
                       className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200 transition"
-                      title="Clear search"
+                      title={isUrdu ? 'تلاش ختم کریں' : 'Clear search'}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -467,7 +484,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-[#005461]">
                       <Palette className="w-3.5 h-3.5 text-[#018790]" />
-                      <span>Element Color (رنگ منتخب کریں)</span>
+                      <span>{isUrdu ? 'عنصر کا رنگ' : 'Element Color'}</span>
                     </div>
                     {/* Hex Badge and Native Picker */}
                     <div className="flex items-center gap-1.5">
@@ -477,7 +494,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                       <label
                         className="relative w-6 h-6 rounded-lg cursor-pointer border border-[#018790]/25 shadow-2xs flex items-center justify-center overflow-hidden hover:scale-110 transition"
                         style={{ backgroundColor: elementColor }}
-                        title="Choose custom color (اپنی مرضی کا رنگ)"
+                        title={isUrdu ? 'اپنی مرضی کا رنگ منتخب کریں' : 'Choose custom color'}
                       >
                         <input
                           type="color"
@@ -513,7 +530,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
 
                   {/* Style Mode Selector (Fill / Outline / Soft Tint) */}
                   <div className="pt-2 border-t border-[#018790]/20 flex items-center justify-between text-[11px]">
-                    <span className="text-gray-700 font-medium">انداز (Style):</span>
+                    <span className="text-gray-700 font-medium">{isUrdu ? 'انداز:' : 'Style:'}</span>
                     <div className="inline-flex bg-white rounded-lg p-0.5 border border-[#018790]/20 text-[10px] font-semibold">
                       <button
                         type="button"
@@ -524,7 +541,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                             : 'text-gray-600 hover:text-[#005461]'
                         }`}
                       >
-                        Fill (ٹھوس)
+                        {isUrdu ? 'ٹھوس' : 'Solid'}
                       </button>
                       <button
                         type="button"
@@ -535,7 +552,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                             : 'text-gray-600 hover:text-[#005461]'
                         }`}
                       >
-                        Outline (خاکہ)
+                        {isUrdu ? 'خاکہ' : 'Outline'}
                       </button>
                       <button
                         type="button"
@@ -546,7 +563,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                             : 'text-gray-600 hover:text-[#005461]'
                         }`}
                       >
-                        Tint (ہلکا)
+                        {isUrdu ? 'ہلکا' : 'Soft Tint'}
                       </button>
                     </div>
                   </div>
@@ -556,13 +573,13 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
                   {(
                     [
-                      { id: 'all', label: 'All (سب)', count: ALL_ELEMENTS.length },
-                      { id: 'shapes', label: 'Shapes (اشکال)', count: ALL_ELEMENTS.filter((e) => e.category === 'shapes').length },
-                      { id: 'lines', label: 'Lines (خطوط)', count: ALL_ELEMENTS.filter((e) => e.category === 'lines').length },
-                      { id: 'english', label: 'English (انگلش)', count: ALL_ELEMENTS.filter((e) => e.category === 'english').length },
-                      { id: 'islamic', label: 'Islamic (اسلامی)', count: ALL_ELEMENTS.filter((e) => e.category === 'islamic').length },
-                      { id: 'dividers', label: 'Dividers', count: ALL_ELEMENTS.filter((e) => e.category === 'dividers').length },
-                      { id: 'brackets', label: 'Brackets', count: ALL_ELEMENTS.filter((e) => e.category === 'brackets').length }
+                      { id: 'all', label: isUrdu ? 'تمام' : 'All', count: ALL_ELEMENTS.length },
+                      { id: 'shapes', label: isUrdu ? 'اشکال' : 'Shapes', count: ALL_ELEMENTS.filter((e) => e.category === 'shapes').length },
+                      { id: 'lines', label: isUrdu ? 'خطوط' : 'Lines', count: ALL_ELEMENTS.filter((e) => e.category === 'lines').length },
+                      { id: 'english', label: isUrdu ? 'انگریزی' : 'English', count: ALL_ELEMENTS.filter((e) => e.category === 'english').length },
+                      { id: 'islamic', label: isUrdu ? 'اسلامی' : 'Islamic', count: ALL_ELEMENTS.filter((e) => e.category === 'islamic').length },
+                      { id: 'dividers', label: isUrdu ? 'لکیریں' : 'Dividers', count: ALL_ELEMENTS.filter((e) => e.category === 'dividers').length },
+                      { id: 'brackets', label: isUrdu ? 'بریکٹس' : 'Brackets', count: ALL_ELEMENTS.filter((e) => e.category === 'brackets').length }
                     ] as const
                   ).map((cat) => (
                     <button
@@ -583,15 +600,23 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 {/* 4. Results Header */}
                 <div className="flex items-center justify-between text-[11px] text-gray-500 px-0.5">
                   <span>
-                    کل عناصر: <strong className="text-gray-800">{filteredElements.length}</strong>
+                    {isUrdu ? (
+                      <>کل عناصر: <strong className="text-gray-800">{filteredElements.length}</strong></>
+                    ) : (
+                      <>Total items: <strong className="text-gray-800">{filteredElements.length}</strong></>
+                    )}
                   </span>
-                  <span className="text-[10px] text-[#005461] font-medium">کلک کر کے شامل کریں</span>
+                  <span className="text-[10px] text-[#005461] font-medium">
+                    {isUrdu ? 'کلک کر کے شامل کریں' : 'Click to insert'}
+                  </span>
                 </div>
 
                 {/* 5. Elements Grid */}
                 {filteredElements.length === 0 ? (
                   <div className="p-6 text-center border-2 border-dashed border-[#018790]/25 rounded-2xl bg-[#f4f4f4]/50 space-y-2">
-                    <p className="text-xs text-gray-500">کوئی عنصر تلاش کے مطابق نہیں ملا۔</p>
+                    <p className="text-xs text-gray-500">
+                      {isUrdu ? 'کوئی عنصر تلاش کے مطابق نہیں ملا۔' : 'No elements found matching your search.'}
+                    </p>
                     <button
                       type="button"
                       onClick={() => {
@@ -600,7 +625,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                       }}
                       className="px-3 py-1.5 bg-[#00b7b5]/15 text-[#005461] hover:bg-[#00b7b5]/25 rounded-lg text-xs font-bold transition cursor-pointer border border-[#018790]/30"
                     >
-                      تلاش ختم کریں (Clear Search)
+                      {isUrdu ? 'فلٹر ختم کریں' : 'Clear Filters'}
                     </button>
                   </div>
                 ) : (
@@ -617,12 +642,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400'
                               : 'bg-white border-[#018790]/20 hover:border-[#018790] hover:bg-[#00b7b5]/10 hover:shadow-xs'
                           }`}
-                          title={`${item.name} (${item.urduName})`}
+                          title={isUrdu ? `${item.urduName} (${item.name})` : item.name}
                         >
                           {/* Recently added feedback badge */}
                           {isRecentlyAdded && (
                             <span className="absolute top-1 right-1 bg-[#005461] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-2xs z-10 animate-in zoom-in-50">
-                              <Check className="w-2.5 h-2.5" /> شامل ہو گیا
+                              <Check className="w-2.5 h-2.5" /> {isUrdu ? 'شامل ہو گیا' : 'Added'}
                             </span>
                           )}
 
@@ -634,11 +659,13 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                           {/* Titles */}
                           <div className="w-full mt-1.5 pt-1.5 border-t border-[#018790]/15 text-center">
                             <div className="text-[11px] font-bold text-gray-800 truncate leading-tight group-hover:text-[#005461] transition">
-                              {item.name}
+                              {isUrdu ? item.urduName : item.name}
                             </div>
-                            <div className="text-[10px] text-gray-500 font-nastaliq truncate leading-tight mt-0.5">
-                              {item.urduName}
-                            </div>
+                            {isUrdu && (
+                              <div className="text-[10px] text-gray-500 font-sans truncate leading-tight mt-0.5">
+                                {item.name}
+                              </div>
+                            )}
                           </div>
                         </button>
                       );
@@ -654,17 +681,22 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
             {activeTab === 'text' && (
               <div className="space-y-4">
                 <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Quick Headings / اہم سرخیاں
+                  {isUrdu ? 'اہم سرخیاں اور متن' : 'Quick Headings & Text'}
                 </div>
 
                 {/* H1 Heading */}
                 <button
                   type="button"
-                  onClick={() => onInsertText('<h1 style="font-size: 28px; font-weight: bold; margin: 16px 0 8px; line-height: 1.8;">بڑی سرخی (Main Title)</h1>', true)}
-                  className="w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl text-right transition cursor-pointer group"
+                  onClick={() => onInsertText(
+                    isUrdu 
+                      ? '<h1 style="font-size: 28px; font-weight: bold; margin: 16px 0 8px; line-height: 1.8;">بڑی سرخی</h1>'
+                      : '<h1 style="font-size: 28px; font-weight: bold; margin: 16px 0 8px; line-height: 1.4;">Add a Main Heading</h1>',
+                    true
+                  )}
+                  className={`w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl transition cursor-pointer group ${isUrdu ? 'text-right' : 'text-left'}`}
                 >
-                  <div className="font-bold text-lg text-gray-900 group-hover:text-[#005461] font-nastaliq">
-                    بڑی سرخی شامل کریں
+                  <div className={`font-bold text-lg text-gray-900 group-hover:text-[#005461] ${isUrdu ? 'font-nastaliq' : 'font-sans'}`}>
+                    {isUrdu ? 'بڑی سرخی شامل کریں' : 'Add Heading'}
                   </div>
                   <div className="text-[11px] text-gray-400">Heading 1 • 28px Bold</div>
                 </button>
@@ -672,11 +704,16 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 {/* H2 Subheading */}
                 <button
                   type="button"
-                  onClick={() => onInsertText('<h2 style="font-size: 22px; font-weight: bold; margin: 12px 0 6px; line-height: 1.8;">ذیلی سرخی (Subheading)</h2>', true)}
-                  className="w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl text-right transition cursor-pointer group"
+                  onClick={() => onInsertText(
+                    isUrdu
+                      ? '<h2 style="font-size: 22px; font-weight: bold; margin: 12px 0 6px; line-height: 1.8;">ذیلی سرخی</h2>'
+                      : '<h2 style="font-size: 22px; font-weight: bold; margin: 12px 0 6px; line-height: 1.4;">Add a Subheading</h2>',
+                    true
+                  )}
+                  className={`w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl transition cursor-pointer group ${isUrdu ? 'text-right' : 'text-left'}`}
                 >
-                  <div className="font-semibold text-base text-gray-800 group-hover:text-[#005461] font-nastaliq">
-                    درمیانی سرخی شامل کریں
+                  <div className={`font-semibold text-base text-gray-800 group-hover:text-[#005461] ${isUrdu ? 'font-nastaliq' : 'font-sans'}`}>
+                    {isUrdu ? 'درمیانی سرخی شامل کریں' : 'Add Subheading'}
                   </div>
                   <div className="text-[11px] text-gray-400">Heading 2 • 22px Semi-bold</div>
                 </button>
@@ -684,11 +721,16 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 {/* Body Paragraph */}
                 <button
                   type="button"
-                  onClick={() => onInsertText('<p style="font-size: 16px; margin: 8px 0; line-height: 2.2;">یہاں اپنا تفصیلی پیراگراف تحریر فرمائیں...</p>', true)}
-                  className="w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl text-right transition cursor-pointer group"
+                  onClick={() => onInsertText(
+                    isUrdu
+                      ? '<p style="font-size: 16px; margin: 8px 0; line-height: 2.2;">یہاں اپنا تفصیلی پیراگراف تحریر فرمائیں...</p>'
+                      : '<p style="font-size: 16px; margin: 8px 0; line-height: 1.6;">Type your body text paragraph here...</p>',
+                    true
+                  )}
+                  className={`w-full p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl transition cursor-pointer group ${isUrdu ? 'text-right' : 'text-left'}`}
                 >
-                  <div className="text-sm text-gray-700 group-hover:text-[#005461] font-nastaliq">
-                    عام پیراگراف کا متن
+                  <div className={`text-sm text-gray-700 group-hover:text-[#005461] ${isUrdu ? 'font-nastaliq' : 'font-sans'}`}>
+                    {isUrdu ? 'عام پیراگراف کا متن' : 'Add Body Text'}
                   </div>
                   <div className="text-[11px] text-gray-400">Body Text • 16px Regular</div>
                 </button>
@@ -701,7 +743,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     className="w-full py-2.5 px-3 bg-[#018790] hover:bg-[#005461] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition active:scale-98"
                   >
                     <Sparkles className="w-4 h-4" />
-                    <span>اسٹائلش فونٹس و کشیدہ خطاطی پینل</span>
+                    <span>{isUrdu ? 'اسٹائلش فونٹس و خطاطی پینل' : 'Fancy Fonts & Calligraphy Panel'}</span>
                   </button>
                 </div>
               </div>
@@ -715,10 +757,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 <div className="p-3 bg-[#00b7b5]/15 border border-[#018790]/25 rounded-xl text-xs space-y-1 text-[#005461]">
                   <div className="font-bold flex items-center gap-1.5">
                     <Feather className="w-4 h-4 text-[#018790]" />
-                    <span>اردو و فارسی شاعری اسٹوڈیو 👑</span>
+                    <span>{isUrdu ? 'اردو و فارسی شاعری اسٹوڈیو 👑' : 'Urdu & Poetry Studio 👑'}</span>
                   </div>
-                  <p className="text-[11px] text-[#005461]/85 font-nastaliq">
-                    شعر و شاعری کو دو کالم، خطاطی کالم اور متوازن مصرعوں کے انداز میں درج کریں۔
+                  <p className={`text-[11px] text-[#005461]/85 ${isUrdu ? 'font-nastaliq' : 'font-sans'}`}>
+                    {isUrdu 
+                      ? 'شعر و شاعری کو دو کالم، خطاطی کالم اور متوازن مصرعوں کے انداز میں درج کریں۔'
+                      : 'Format poetry in balanced couplets, dual columns, and calligraphy verses.'}
                   </p>
                 </div>
 
@@ -728,11 +772,11 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                   className="w-full py-3 px-4 bg-[#018790] hover:bg-[#005461] text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition active:scale-98"
                 >
                   <Feather className="w-4 h-4" />
-                  <span>اوپن شاعری لائبریری و اسٹوڈیو</span>
+                  <span>{isUrdu ? 'اوپن شاعری لائبریری و اسٹوڈیو' : 'Open Poetry Library & Studio'}</span>
                 </button>
 
                 <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider pt-2">
-                  فوری کلاسک اشعار کے نمونے:
+                  {isUrdu ? 'فوری کلاسک اشعار کے نمونے:' : 'Classic Poetry Samples:'}
                 </div>
 
                 <div className="space-y-2">
@@ -741,7 +785,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     className="p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl cursor-pointer text-center font-nastaliq text-xs text-gray-800 transition"
                   >
                     <p className="font-semibold text-sm">ہزاروں خواہشیں ایسی کہ ہر خواہش پہ دم نکلے</p>
-                    <p className="text-[10px] text-gray-400 mt-1">مرزا اسد اللہ خان غالب</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{isUrdu ? 'مرزا اسد اللہ خان غالب' : 'Mirza Ghalib'}</p>
                   </div>
 
                   <div
@@ -749,7 +793,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     className="p-3 bg-white hover:bg-[#00b7b5]/10 hover:border-[#018790] border border-[#018790]/20 rounded-xl cursor-pointer text-center font-nastaliq text-xs text-gray-800 transition"
                   >
                     <p className="font-semibold text-sm">ستاروں سے آگے جہاں اور بھی ہیں</p>
-                    <p className="text-[10px] text-gray-400 mt-1">علامہ محمد اقبال</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{isUrdu ? 'علامہ محمد اقبال' : 'Allama Muhammad Iqbal'}</p>
                   </div>
                 </div>
               </div>
@@ -769,10 +813,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     <UploadCloud className="w-5 h-5" />
                   </div>
                   <div className="font-bold text-xs text-gray-900">
-                    نئی تصویر منتخب کریں یا اپلوڈ کریں
+                    {isUrdu ? 'نئی تصویر منتخب کریں یا اپلوڈ کریں' : 'Upload or Select New Image'}
                   </div>
                   <div className="text-[10px] text-[#005461] mt-0.5">
-                    PNG, JPG, WebP (بائیں جانب شامل ہوگی)
+                    {isUrdu ? 'PNG, JPG, WebP (دستاویز میں شامل ہوگی)' : 'PNG, JPG, WebP (Added to canvas)'}
                   </div>
                 </div>
 
@@ -785,7 +829,9 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         <div className="w-5 h-5 rounded-md bg-[#005461] text-white flex items-center justify-center">
                           <ImageIcon className="w-3 h-3" />
                         </div>
-                        <span className="font-bold text-xs text-gray-900">منتخب تصویر کے کنٹرولز</span>
+                        <span className="font-bold text-xs text-gray-900">
+                          {isUrdu ? 'منتخب تصویر کے کنٹرولز' : 'Selected Image Controls'}
+                        </span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full bg-[#00b7b5]/15 text-[#005461] font-bold font-mono text-[10px] border border-[#018790]/30">
                         {imageWidthPercent}%
@@ -796,10 +842,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-gray-800">
-                          سائز چھوٹا / بڑا کریں:
+                          {isUrdu ? 'سائز چھوٹا / بڑا کریں:' : 'Resize Image:'}
                         </span>
                         <span className="text-[10px] text-[#005461] font-mono font-bold">
-                          {imageWidthPercent}% چوڑائی
+                          {imageWidthPercent}% {isUrdu ? 'چوڑائی' : 'Width'}
                         </span>
                       </div>
 
@@ -808,10 +854,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                           type="button"
                           onClick={() => onUpdateImageWidth && onUpdateImageWidth(Math.max(10, imageWidthPercent - 10))}
                           className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-[#018790]/20 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
-                          title="چھوٹا کریں (-10%)"
+                          title={isUrdu ? 'چھوٹا کریں (-10%)' : 'Decrease size (-10%)'}
                         >
                           <Minus className="w-3 h-3" />
-                          <span>چھوٹا</span>
+                          <span>{isUrdu ? 'چھوٹا' : 'Smaller'}</span>
                         </button>
                         <input
                           type="range"
@@ -826,20 +872,20 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                           type="button"
                           onClick={() => onUpdateImageWidth && onUpdateImageWidth(Math.min(100, imageWidthPercent + 10))}
                           className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-[#018790]/20 hover:bg-[#00b7b5]/15 hover:text-[#005461] transition text-gray-700 active:scale-95 flex items-center gap-0.5"
-                          title="بڑا کریں (+10%)"
+                          title={isUrdu ? 'بڑا کریں (+10%)' : 'Increase size (+10%)'}
                         >
                           <Plus className="w-3 h-3" />
-                          <span>بڑا</span>
+                          <span>{isUrdu ? 'بڑا' : 'Bigger'}</span>
                         </button>
                       </div>
 
                       {/* Quick Presets */}
                       <div className="grid grid-cols-4 gap-1 pt-1">
                         {[
-                          { pct: 25, label: '25% چھوٹا' },
-                          { pct: 50, label: '50% درمیانہ' },
-                          { pct: 75, label: '75% بڑا' },
-                          { pct: 100, label: '100% پورا' }
+                          { pct: 25, label: isUrdu ? '25% چھوٹا' : '25% Small' },
+                          { pct: 50, label: isUrdu ? '50% درمیانہ' : '50% Med' },
+                          { pct: 75, label: isUrdu ? '75% بڑا' : '75% Large' },
+                          { pct: 100, label: isUrdu ? '100% پورا' : '100% Full' }
                         ].map((preset) => (
                           <button
                             key={preset.pct}
@@ -857,10 +903,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                       </div>
                     </div>
 
-                    {/* Alignment Controls (بائیں، درمیان، دائیں) */}
+                    {/* Alignment Controls */}
                     <div className="space-y-1.5 pt-1 border-t border-[#018790]/20">
                       <span className="text-[11px] font-bold text-gray-800 block">
-                        الائنمنٹ (بائیں یا دائیں جانب رکھیں):
+                        {isUrdu ? 'الائنمنٹ (جانب رکھیں):' : 'Alignment:'}
                       </span>
 
                       <div className="grid grid-cols-3 gap-1.5">
@@ -872,10 +918,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               ? 'bg-[#005461] text-white border-[#005461] shadow-xs'
                               : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
                           }`}
-                          title="بائیں جانب کریں (Left)"
+                          title={isUrdu ? 'بائیں جانب کریں (Left)' : 'Align Left'}
                         >
                           <AlignLeft className="w-3.5 h-3.5" />
-                          <span>بائیں (Left)</span>
+                          <span>{isUrdu ? 'بائیں' : 'Left'}</span>
                         </button>
                         <button
                           type="button"
@@ -885,10 +931,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               ? 'bg-[#005461] text-white border-[#005461] shadow-xs'
                               : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
                           }`}
-                          title="درمیان میں کریں (Center)"
+                          title={isUrdu ? 'درمیان میں کریں (Center)' : 'Align Center'}
                         >
                           <AlignCenter className="w-3.5 h-3.5" />
-                          <span>درمیان</span>
+                          <span>{isUrdu ? 'درمیان' : 'Center'}</span>
                         </button>
                         <button
                           type="button"
@@ -898,10 +944,10 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               ? 'bg-[#005461] text-white border-[#005461] shadow-xs'
                               : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
                           }`}
-                          title="دائیں جانب کریں (Right)"
+                          title={isUrdu ? 'دائیں جانب کریں (Right)' : 'Align Right'}
                         >
                           <AlignRight className="w-3.5 h-3.5" />
-                          <span>دائیں</span>
+                          <span>{isUrdu ? 'دائیں' : 'Right'}</span>
                         </button>
                       </div>
 
@@ -916,7 +962,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
                           }`}
                         >
-                          متن بائیں بہاؤ
+                          {isUrdu ? 'متن بائیں بہاؤ' : 'Float Left'}
                         </button>
                         <button
                           type="button"
@@ -927,7 +973,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               : 'bg-white text-gray-700 border-[#018790]/20 hover:bg-[#00b7b5]/15'
                           }`}
                         >
-                          متن دائیں بہاؤ
+                          {isUrdu ? 'متن دائیں بہاؤ' : 'Float Right'}
                         </button>
                       </div>
                     </div>
@@ -935,15 +981,15 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     {/* Visual Styling: Corners & Effects */}
                     <div className="space-y-1.5 pt-1 border-t border-[#018790]/20">
                       <span className="text-[11px] font-bold text-gray-800 block">
-                        کونے اور سٹائل:
+                        {isUrdu ? 'کونے اور سٹائل:' : 'Corners & Styling:'}
                       </span>
                       <div className="grid grid-cols-5 gap-1 text-center">
                         {([
-                          { id: 'none', label: 'سیدھا' },
-                          { id: 'sm', label: 'ہلکا' },
-                          { id: 'md', label: 'معیاری' },
-                          { id: 'lg', label: 'گول' },
-                          { id: 'full', label: 'دائرہ' }
+                          { id: 'none', label: isUrdu ? 'سیدھا' : 'Sharp' },
+                          { id: 'sm', label: isUrdu ? 'ہلکا' : 'Small' },
+                          { id: 'md', label: isUrdu ? 'معیاری' : 'Medium' },
+                          { id: 'lg', label: isUrdu ? 'گول' : 'Large' },
+                          { id: 'full', label: isUrdu ? 'دائرہ' : 'Circle' }
                         ] as const).map((r) => (
                           <button
                             key={r.id}
@@ -970,8 +1016,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               : 'bg-white text-gray-600 border-[#018790]/20'
                           }`}
                         >
-                          <span>سایہ (Shadow):</span>
-                          <span>{imageShadow ? 'آن' : 'بند'}</span>
+                          <span>{isUrdu ? 'سایہ:' : 'Shadow:'}</span>
+                          <span>{imageShadow ? (isUrdu ? 'آن' : 'On') : (isUrdu ? 'بند' : 'Off')}</span>
                         </button>
                         <button
                           type="button"
@@ -982,8 +1028,8 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                               : 'bg-white text-gray-600 border-[#018790]/20'
                           }`}
                         >
-                          <span>بارڈر (Border):</span>
-                          <span>{imageBorder ? 'آن' : 'بند'}</span>
+                          <span>{isUrdu ? 'بارڈر:' : 'Border:'}</span>
+                          <span>{imageBorder ? (isUrdu ? 'آن' : 'On') : (isUrdu ? 'بند' : 'Off')}</span>
                         </button>
                       </div>
                     </div>
@@ -996,7 +1042,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         className="flex-1 py-1.5 rounded-lg bg-white border border-[#018790]/20 hover:bg-[#00b7b5]/15 text-gray-700 font-bold text-xs flex items-center justify-center gap-1 transition"
                       >
                         <Copy className="w-3.5 h-3.5 text-[#005461]" />
-                        <span>کاپی بنائیں</span>
+                        <span>{isUrdu ? 'کاپی بنائیں' : 'Duplicate'}</span>
                       </button>
                       <button
                         type="button"
@@ -1004,13 +1050,13 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         className="flex-1 py-1.5 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-1 transition"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                        <span>تصویر ڈیلیٹ</span>
+                        <span>{isUrdu ? 'تصویر ڈیلیٹ' : 'Delete'}</span>
                       </button>
                       <button
                         type="button"
                         onClick={onDeselectImage}
                         className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 transition"
-                        title="انتخاب ختم کریں"
+                        title={isUrdu ? 'انتخاب ختم کریں' : 'Deselect'}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1020,10 +1066,12 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                   <div className="p-3 bg-[#f4f4f4]/60 rounded-xl border border-[#018790]/20 text-xs space-y-2 text-gray-600">
                     <div className="font-semibold text-gray-900 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-[#018790]" />
-                      <span>تصویر کو چھوٹا/بڑا یا بائیں کرنے کا طریقہ:</span>
+                      <span>{isUrdu ? 'تصویر کو کنٹرول کرنے کا طریقہ:' : 'How to arrange images:'}</span>
                     </div>
-                    <p className="text-[11px] leading-relaxed">
-                      صفحے پر موجود کسی بھی تصویر پر کلک کریں تاکہ وہ منتخب ہو جائے، یا نئی تصویر اپلوڈ کریں۔ آپ تصویر کے کونوں کو کھینچ کر، یا سائز بٹنوں اور سلائیڈر سے اسے چھوٹا یا بڑا کر سکتے ہیں، اور ایک کلک میں <strong>بائیں جانب (Left)</strong> یا درمیان منتقل کر سکتے ہیں!
+                    <p className={`text-[11px] leading-relaxed ${isUrdu ? 'font-nastaliq' : 'font-sans'}`}>
+                      {isUrdu
+                        ? 'صفحے پر موجود کسی بھی تصویر پر کلک کریں تاکہ وہ منتخب ہو جائے، یا نئی تصویر اپلوڈ کریں۔ آپ سائز بٹنوں اور سلائیڈر سے اسے چھوٹا یا بڑا کر سکتے ہیں، اور بائیں جانب، دائیں یا درمیان الائن کر سکتے ہیں!'
+                        : 'Click any image on the canvas to select it, or upload a new image. You can resize it smoothly using buttons and slider, align left, right or center, and adjust corners!'}
                     </p>
                   </div>
                 )}
@@ -1040,7 +1088,9 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Keyboard className="w-4 h-4 text-[#005461]" />
-                      <span className="font-bold text-xs text-gray-800">اردو فونیٹک کی بورڈ</span>
+                      <span className="font-bold text-xs text-gray-800">
+                        {isUrdu ? 'اردو فونیٹک کی بورڈ' : 'Urdu Phonetic Keyboard'}
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -1049,11 +1099,13 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         isUrduKeyboardOpen ? 'bg-[#005461] text-white' : 'bg-gray-200 text-gray-700'
                       }`}
                     >
-                      {isUrduKeyboardOpen ? 'فعال ہے (On)' : 'بند ہے (Off)'}
+                      {isUrduKeyboardOpen ? (isUrdu ? 'فعال ہے' : 'On') : (isUrdu ? 'بند ہے' : 'Off')}
                     </button>
                   </div>
-                  <p className="text-[11px] text-gray-500">
-                    اسکرین پر ورچوئل کی بورڈ دکھائیں تاکہ بغیر اردو کی بورڈ کے آسانی سے ٹائپ کر سکیں۔
+                  <p className={`text-[11px] text-gray-500 ${isUrdu ? 'font-nastaliq' : 'font-sans'}`}>
+                    {isUrdu
+                      ? 'اسکرین پر ورچوئل کی بورڈ دکھائیں تاکہ بغیر اردو کی بورڈ کے آسانی سے ٹائپ کر سکیں۔'
+                      : 'Display on-screen virtual keyboard for quick typing without system Urdu layout.'}
                   </p>
                 </div>
 
@@ -1065,7 +1117,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition"
                   >
                     <Undo className="w-3.5 h-3.5" />
-                    <span>Undo (Ctrl+Z)</span>
+                    <span>{isUrdu ? 'پہلے جیسا (Undo)' : 'Undo (Ctrl+Z)'}</span>
                   </button>
                   <button
                     type="button"
@@ -1073,25 +1125,27 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition"
                   >
                     <Redo className="w-3.5 h-3.5" />
-                    <span>Redo (Ctrl+Y)</span>
+                    <span>{isUrdu ? 'دوبارہ کریں (Redo)' : 'Redo (Ctrl+Y)'}</span>
                   </button>
                 </div>
 
                 {/* Metrics */}
                 <div className="p-3 bg-[#f4f4f4]/60 border border-[#018790]/20 rounded-xl space-y-2 text-xs">
-                  <div className="font-bold text-gray-900">دستاویز کے اعداد و شمار:</div>
+                  <div className="font-bold text-gray-900">
+                    {isUrdu ? 'دستاویز کے اعداد و شمار:' : 'Document Statistics:'}
+                  </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="bg-white p-2 rounded-lg border border-[#018790]/20 shadow-2xs">
                       <div className="font-mono font-bold text-sm text-[#005461]">{wordCount}</div>
-                      <div className="text-[10px] text-gray-400">الفاظ (Words)</div>
+                      <div className="text-[10px] text-gray-400">{isUrdu ? 'الفاظ' : 'Words'}</div>
                     </div>
                     <div className="bg-white p-2 rounded-lg border border-[#018790]/20 shadow-2xs">
                       <div className="font-mono font-bold text-sm text-[#005461]">{charCount}</div>
-                      <div className="text-[10px] text-gray-400">حروف (Chars)</div>
+                      <div className="text-[10px] text-gray-400">{isUrdu ? 'حروف' : 'Chars'}</div>
                     </div>
                     <div className="bg-white p-2 rounded-lg border border-[#018790]/20 shadow-2xs">
                       <div className="font-mono font-bold text-sm text-[#005461]">{pagesCount}</div>
-                      <div className="text-[10px] text-gray-400">صفحات (Pages)</div>
+                      <div className="text-[10px] text-gray-400">{isUrdu ? 'صفحات' : 'Pages'}</div>
                     </div>
                   </div>
                 </div>
@@ -1106,13 +1160,15 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 {/* Page Color Selection */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-gray-900">ورق کا رنگ (Page Background)</span>
+                    <span className="text-xs font-bold text-gray-900">
+                      {isUrdu ? 'ورق کا رنگ' : 'Page Background Color'}
+                    </span>
                     <button
                       type="button"
                       onClick={onOpenPageColorModal}
                       className="text-[11px] text-[#018790] font-semibold hover:underline"
                     >
-                      مزید رنگ
+                      {isUrdu ? 'مزید رنگ' : 'More Colors'}
                     </button>
                   </div>
                   <div className="grid grid-cols-5 gap-2">
@@ -1140,7 +1196,9 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 {/* Frame / Border Toggle */}
                 <div className="pt-2 border-t border-[#018790]/20 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-gray-900">صفحہ کا فریم (Border / Frame)</span>
+                    <span className="text-xs font-bold text-gray-900">
+                      {isUrdu ? 'صفحہ کا بارڈر / فریم' : 'Page Border & Frame'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setHasBorder(!hasBorder)}
@@ -1148,26 +1206,35 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         hasBorder ? 'bg-[#005461] text-white' : 'bg-gray-200 text-gray-700'
                       }`}
                     >
-                      {hasBorder ? 'آن ہے (On)' : 'آف ہے (Off)'}
+                      {hasBorder ? (isUrdu ? 'آن ہے' : 'On') : (isUrdu ? 'آف ہے' : 'Off')}
                     </button>
                   </div>
 
                   {hasBorder && (
                     <div className="space-y-2">
-                      <div className="text-[11px] text-gray-500">فریم اسٹائل منتخب کریں:</div>
+                      <div className="text-[11px] text-gray-500">
+                        {isUrdu ? 'فریم اسٹائل منتخب کریں:' : 'Select border style:'}
+                      </div>
                       <div className="grid grid-cols-3 gap-1.5 text-xs">
-                        {(['solid', 'double', 'dashed', 'dotted', 'corners', 'royal'] as const).map((b) => (
+                        {([
+                          { id: 'solid', labelUrdu: 'ٹھوس', labelEn: 'Solid' },
+                          { id: 'double', labelUrdu: 'ڈبل', labelEn: 'Double' },
+                          { id: 'dashed', labelUrdu: 'ڈیشڈ', labelEn: 'Dashed' },
+                          { id: 'dotted', labelUrdu: 'نقطہ دار', labelEn: 'Dotted' },
+                          { id: 'corners', labelUrdu: 'کونے', labelEn: 'Corners' },
+                          { id: 'royal', labelUrdu: 'شاہی', labelEn: 'Royal' }
+                        ] as const).map((b) => (
                           <button
-                            key={b}
+                            key={b.id}
                             type="button"
-                            onClick={() => setBorderType(b)}
+                            onClick={() => setBorderType(b.id)}
                             className={`py-1.5 px-2 rounded-lg border capitalize transition text-center ${
-                              borderType === b
+                              borderType === b.id
                                 ? 'bg-[#00b7b5]/20 border-[#018790] text-[#005461] font-bold'
                                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                             }`}
                           >
-                            {b}
+                            {isUrdu ? b.labelUrdu : b.labelEn}
                           </button>
                         ))}
                       </div>
@@ -1178,7 +1245,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                         className="w-full mt-2 py-2 px-3 bg-[#f4f4f4] hover:bg-[#00b7b5]/15 text-[#005461] font-semibold text-xs rounded-xl border border-[#018790]/25 transition flex items-center justify-center gap-1.5"
                       >
                         <Sliders className="w-3.5 h-3.5" />
-                        <span>تفصیلی فریم ترتیبات (Border Modal)</span>
+                        <span>{isUrdu ? 'تفصیلی فریم ترتیبات' : 'Customize Border Settings'}</span>
                       </button>
                     </div>
                   )}
@@ -1187,7 +1254,9 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                 {/* Sheet Size */}
                 <div className="pt-2 border-t border-[#018790]/20 flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-bold text-gray-900">ورق کا سائز (Sheet Size)</div>
+                    <div className="text-xs font-bold text-gray-900">
+                      {isUrdu ? 'ورق کا سائز' : 'Sheet Size'}
+                    </div>
                     <div className="text-[11px] text-gray-500 font-mono">{pageSize}</div>
                   </div>
                   <button
@@ -1195,7 +1264,7 @@ export const CanvaSidebar: React.FC<CanvaSidebarProps> = ({
                     onClick={onOpenPageSizeModal}
                     className="px-2.5 py-1 bg-[#f4f4f4] hover:bg-[#00b7b5]/15 text-[#005461] border border-[#018790]/25 font-semibold text-xs rounded-lg transition"
                   >
-                    تبدیل کریں
+                    {isUrdu ? 'تبدیل کریں' : 'Change'}
                   </button>
                 </div>
               </div>
